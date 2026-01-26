@@ -6,24 +6,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" href="data:,">
 <style>
-  body{font-family:system-ui;background:#0b0b14;color:#fff;padding:20px}
+  body{font-family:system-ui;background:#0b0b14;color:#fff;padding:20px;max-width:980px;margin:0 auto}
   h2{margin:0 0 8px}
   .muted{opacity:.75}
-  .card{background:#141428;padding:16px;border-radius:12px;margin-bottom:16px}
+  .card{background:#141428;padding:16px;border-radius:12px;margin-bottom:14px}
   input,select,button{padding:10px;border-radius:8px;border:none}
   input,select{min-width:240px}
   button{background:#6c5cff;color:#fff;font-weight:700;cursor:pointer}
   button.secondary{background:#2a2a44}
   button.danger{background:#ff4d4d}
+  button:disabled{opacity:.5;cursor:not-allowed}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  pre{white-space:pre-wrap;word-break:break-word;background:#0f0f1f;padding:10px;border-radius:10px}
+  pre{white-space:pre-wrap;word-break:break-word;background:#0f0f1f;padding:10px;border-radius:10px;margin:10px 0 0}
   .pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#22223b;font-size:12px}
   .pill.ok{background:#1f3a2b}
   .pill.draft{background:#3a2a1f}
-  .grid{display:grid;grid-template-columns:1fr;gap:12px}
-  @media (min-width: 980px){
-    .grid{grid-template-columns:1fr 1fr}
-  }
   table{width:100%;border-collapse:collapse;margin-top:8px}
   th,td{border-bottom:1px solid #2b2b44;padding:8px;text-align:left;font-size:13px;vertical-align:top}
   th{opacity:.8;font-weight:700}
@@ -34,7 +31,7 @@
 <body>
 
 <h2>Lotus · Admin MVP</h2>
-<div class="muted" style="margin-bottom:16px">
+<div class="muted" style="margin-bottom:12px">
   Backend: GitHub Pages → Yandex Function → GAS → Google Sheets
 </div>
 
@@ -49,6 +46,7 @@ const API_URL = "https://functions.yandexcloud.net/d4evbekf5us7hbjid3m3";
 /** ---------- Utilities ---------- */
 const $ = (id) => document.getElementById(id);
 function esc_(s){ return String(s ?? '').replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+function setOut(id, obj){ $(id).textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 2); }
 
 async function api(action, data){
   if (!API_URL || API_URL.includes('PASTE_')) throw new Error('Не задан API_URL (endpoint Yandex Function).');
@@ -80,6 +78,14 @@ function readExcelFirstSheet(file){
   });
 }
 
+function setStatus(text, isErr=false){
+  const el = $('global-status');
+  el.textContent = text;
+  el.style.opacity = "1";
+  el.style.color = isErr ? "#ff9d9d" : "#b9ffcf";
+  setTimeout(()=>{ el.style.opacity="0.75"; }, 1600);
+}
+
 /** ---------- State ---------- */
 const state = {
   releasesHeader: [],
@@ -109,14 +115,6 @@ function getCommunitiesForRelease_(release_id){
     .sort((a,b)=>a.sort_order-b.sort_order);
 }
 
-function setStatus(text, isErr=false){
-  const el = $('global-status');
-  el.textContent = text;
-  el.style.opacity = "1";
-  el.style.color = isErr ? "#ff9d9d" : "#b9ffcf";
-  setTimeout(()=>{ el.style.opacity="0.75"; }, 1500);
-}
-
 /** ---------- Rendering ---------- */
 function renderReleaseSelect(){
   const ridx = idx_(state.releasesHeader,'release_id');
@@ -142,10 +140,10 @@ function renderSelectedRelease(){
   if (!rel){
     $('selected-release').innerHTML = `<div class="muted">Релиз не выбран</div>`;
     $('community-release-id').value = "";
-    $('vk-release').value = "";
-    $('dg-release').value = "";
-    $('s-release').value = "";
+    $('streams-release-id').value = "";
+    $('upload-release-id').value = "";
     $('community-list').innerHTML = '';
+    $('btn-publish').disabled = true;
     return;
   }
 
@@ -156,15 +154,12 @@ function renderSelectedRelease(){
   const published = (publishedRaw === true || String(publishedRaw).toLowerCase() === 'true');
   const rid = rel[idx_(h,'release_id')];
   const pass = rel[idx_(h,'password')];
-  const artist = rel[idx_(h,'artist_name')];
-  const track = rel[idx_(h,'track_title')];
   const ps = rel[idx_(h,'period_start')];
   const pe = rel[idx_(h,'period_end')];
 
   $('community-release-id').value = rid;
-  $('vk-release').value = rid;
-  $('dg-release').value = rid;
-  $('s-release').value = rid;
+  $('streams-release-id').value = rid;
+  $('upload-release-id').value = rid;
 
   $('selected-release').innerHTML = `
     <div class="row" style="justify-content:space-between">
@@ -175,11 +170,9 @@ function renderSelectedRelease(){
           · slug: <span class="mono">${esc_(slug)}</span>
           · пароль: <span class="mono">${esc_(pass)}</span>
         </div>
-        <div class="small muted">${esc_(artist)} — ${esc_(track)} · ${esc_(ps)} — ${esc_(pe)}</div>
+        <div class="small muted">${esc_(ps)} — ${esc_(pe)}</div>
       </div>
-      <div>
-        <span class="pill ${published ? 'ok' : 'draft'}">${published ? 'Опубликовано' : 'Черновик'}</span>
-      </div>
+      <div><span class="pill ${published ? 'ok' : 'draft'}">${published ? 'Опубликовано' : 'Черновик'}</span></div>
     </div>
   `;
 
@@ -197,13 +190,15 @@ function renderCommunityList(){
     $('community-list').innerHTML = `<div class="muted small">Сообщества не добавлены</div>`;
     return;
   }
-  const rows = list.map((c,i)=>`
+  const rows = list.map(c=>`
     <tr>
       <td class="mono">${esc_(c.community_id)}</td>
       <td>${esc_(c.community_name)}</td>
       <td class="small muted">${esc_(c.sort_order)}</td>
       <td>
-        <button class="secondary" type="button" onclick="selectCommunity('${esc_(c.community_id)}')">Выбрать для загрузок</button>
+        <button class="secondary" type="button" onclick="selectCommunity('${esc_(c.community_id)}')">
+          Выбрать для загрузок
+        </button>
       </td>
     </tr>
   `).join('');
@@ -219,9 +214,8 @@ function renderCommunityList(){
 }
 
 function selectCommunity(cid){
-  $('vk-community').value = cid;
-  $('dg-community').value = cid;
-  setStatus('Выбрано community_id для загрузок: ' + cid);
+  $('community-id').value = cid;
+  setStatus('Выбрано community_id: ' + cid);
 }
 
 /** ---------- Data load ---------- */
@@ -229,7 +223,6 @@ async function refresh(){
   $('btn-refresh').disabled = true;
   try{
     const data = await api('bootstrapAdmin', {});
-    // GAS возвращает массивы rows (без заголовков в ряд) — мы сохраняем как есть
     state.releasesHeader = data.releasesHeader || [];
     state.releasesRows = data.releases || [];
     state.communitiesHeader = data.communitiesHeader || [];
@@ -254,7 +247,7 @@ async function createRelease(){
     if (!password) throw new Error('Укажи пароль артиста');
 
     const data = await api('createRelease', { title, password });
-    $('r-out').textContent = JSON.stringify(data, null, 2);
+    setOut('r-out', data);
 
     await refresh();
     state.selectedReleaseId = data.release_id;
@@ -262,7 +255,7 @@ async function createRelease(){
     renderSelectedRelease();
     setStatus('Релиз создан');
   }catch(e){
-    $('r-out').textContent = 'Ошибка: ' + e.message;
+    setOut('r-out', 'Ошибка: ' + e.message);
     setStatus('Ошибка: ' + e.message, true);
   }
 }
@@ -318,41 +311,39 @@ async function togglePublish(){
   }
 }
 
-/** ---------- Uploads ---------- */
-async function uploadVk(){
-  try{
-    const kind = $('vk-kind').value;
-    const release_id = $('vk-release').value.trim();
-    const community_id = $('vk-community').value.trim();
-    const file = $('vk-file').files[0];
+/** ---------- Upload / Delete (separate cards) ---------- */
+function getCtx_(){
+  const release_id = $('upload-release-id').value.trim();
+  const community_id = $('community-id').value.trim();
+  if (!release_id) throw new Error('Нет release_id (выбери релиз)');
+  if (!community_id) throw new Error('Не выбран community_id (выбери в таблице сообществ)');
+  return { release_id, community_id };
+}
 
-    if (!release_id) throw new Error('Нет release_id (выбери релиз)');
-    if (!community_id) throw new Error('Укажи community_id (кнопка "Выбрать для загрузок" в списке сообществ)');
-    if (!file) throw new Error('Выбери файл');
+async function uploadVkKind(kind, fileInputId, outId){
+  try{
+    const { release_id, community_id } = getCtx_();
+    const file = $(fileInputId).files[0];
+    if (!file) throw new Error('Файл не выбран');
 
     const rows = await readExcelFirstSheet(file);
     const header = rows.shift();
     const dataRows = rows.filter(r => r && r.length && r.some(v => String(v ?? '').trim() !== ''));
 
     const resp = await api('uploadVkTable', { kind, release_id, community_id, header, rows: dataRows });
-    $('vk-out').textContent = JSON.stringify(resp, null, 2);
-    setStatus('VK ' + kind + ': загружено ' + (resp.added ?? 0) + ' строк');
+    setOut(outId, resp);
+    setStatus(`Загружено: ${kind} · ${resp.added ?? 0} строк`);
   }catch(e){
-    $('vk-out').textContent = 'Ошибка: ' + e.message;
+    setOut(outId, 'Ошибка: ' + e.message);
     setStatus('Ошибка: ' + e.message, true);
   }
 }
 
-async function uploadDemoGeo(){
+async function uploadDemoGeoKind(kind, fileInputId, outId){
   try{
-    const kind = $('dg-kind').value;
-    const release_id = $('dg-release').value.trim();
-    const community_id = $('dg-community').value.trim();
-    const file = $('dg-file').files[0];
-
-    if (!release_id) throw new Error('Нет release_id (выбери релиз)');
-    if (!community_id) throw new Error('Укажи community_id (кнопка "Выбрать для загрузок" в списке сообществ)');
-    if (!file) throw new Error('Выбери файл');
+    const { release_id, community_id } = getCtx_();
+    const file = $(fileInputId).files[0];
+    if (!file) throw new Error('Файл не выбран');
 
     const all = await readExcelFirstSheet(file);
     const meta = all.slice(0,5);
@@ -369,21 +360,33 @@ async function uploadDemoGeo(){
       campaign_id, campaign_name, period_from, period_to,
       header, rows
     });
-    $('dg-out').textContent = JSON.stringify(resp, null, 2);
-    setStatus(kind + ': загружено ' + (resp.added ?? 0) + ' строк');
+
+    setOut(outId, resp);
+    setStatus(`Загружено: ${kind} · ${resp.added ?? 0} строк`);
   }catch(e){
-    $('dg-out').textContent = 'Ошибка: ' + e.message;
+    setOut(outId, 'Ошибка: ' + e.message);
+    setStatus('Ошибка: ' + e.message, true);
+  }
+}
+
+async function deleteRaw(kind, outId){
+  try{
+    const { release_id, community_id } = getCtx_();
+    const resp = await api('deleteRawTable', { kind, release_id, community_id });
+    setOut(outId, resp);
+    setStatus(`Удалено: ${kind} · ${resp.deleted ?? 0} строк`);
+  }catch(e){
+    setOut(outId, 'Ошибка: ' + e.message);
     setStatus('Ошибка: ' + e.message, true);
   }
 }
 
 async function uploadStreams(){
   try{
-    const release_id = $('s-release').value.trim();
-    const file = $('s-file').files[0];
-
+    const release_id = $('streams-release-id').value.trim();
     if (!release_id) throw new Error('Нет release_id (выбери релиз)');
-    if (!file) throw new Error('Выбери файл');
+    const file = $('streams-file').files[0];
+    if (!file) throw new Error('Файл не выбран');
 
     const rows = await readExcelFirstSheet(file);
     const first = rows[0] || [];
@@ -396,47 +399,56 @@ async function uploadStreams(){
       .map(r => [r[0] ?? '', r[1] ?? '', r[2] ?? '', r[3] ?? '']);
 
     const resp = await api('uploadStreams', { release_id, header, rows: dataRows });
-    $('s-out').textContent = JSON.stringify(resp, null, 2);
-    setStatus('Стримы: загружено ' + (resp.added ?? 0) + ' строк');
+    setOut('streams-out', resp);
+    setStatus(`Стримы загружены · ${resp.added ?? 0} строк`);
   }catch(e){
-    $('s-out').textContent = 'Ошибка: ' + e.message;
+    setOut('streams-out', 'Ошибка: ' + e.message);
+    setStatus('Ошибка: ' + e.message, true);
+  }
+}
+
+async function deleteStreams(){
+  try{
+    const release_id = $('streams-release-id').value.trim();
+    if (!release_id) throw new Error('Нет release_id (выбери релиз)');
+    const resp = await api('deleteStreams', { release_id });
+    setOut('streams-out', resp);
+    setStatus(`Стримы удалены · ${resp.deleted ?? 0} строк`);
+  }catch(e){
+    setOut('streams-out', 'Ошибка: ' + e.message);
     setStatus('Ошибка: ' + e.message, true);
   }
 }
 </script>
 
-<div class="grid">
-
-  <div class="card">
-    <div class="row" style="justify-content:space-between">
-      <h3 style="margin:0">A) Релизы</h3>
-      <button id="btn-refresh" class="secondary" type="button">Обновить</button>
-    </div>
-
-    <div class="row" style="margin-top:10px">
-      <select id="release-select"></select>
-      <button id="btn-publish" type="button" disabled>Опубликовать</button>
-    </div>
-
-    <div style="margin-top:10px" id="selected-release"></div>
-    <div class="muted small" id="global-status" style="margin-top:10px;opacity:.75">—</div>
+<!-- A) Релизы -->
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <h3 style="margin:0">A) Релизы</h3>
+    <button id="btn-refresh" class="secondary" type="button">Обновить</button>
   </div>
 
-  <div class="card">
-    <h3 style="margin-top:0">B) Создать релиз</h3>
-    <div class="row">
-      <input id="r-title" placeholder="Название релиза" />
-      <input id="r-password" placeholder="Пароль артиста" />
-      <button id="btn-create-release" type="button">Создать</button>
-    </div>
-    <pre id="r-out">—</pre>
-    <div class="muted small">
-      После создания релиз появится в списке. Логин (slug) генерируется автоматически.
-    </div>
+  <div class="row" style="margin-top:10px">
+    <select id="release-select"></select>
+    <button id="btn-publish" type="button" disabled>Опубликовать</button>
   </div>
 
+  <div style="margin-top:10px" id="selected-release"></div>
+  <div class="muted small" id="global-status" style="margin-top:10px;opacity:.75">—</div>
 </div>
 
+<!-- B) Создать релиз -->
+<div class="card">
+  <h3 style="margin-top:0">B) Создать релиз</h3>
+  <div class="row">
+    <input id="r-title" placeholder="Название релиза" />
+    <input id="r-password" placeholder="Пароль артиста" />
+    <button id="btn-create-release" type="button">Создать</button>
+  </div>
+  <pre id="r-out">—</pre>
+</div>
+
+<!-- C) Сообщества -->
 <div class="card">
   <h3 style="margin-top:0">C) Сообщества выбранного релиза</h3>
   <div class="row">
@@ -446,50 +458,90 @@ async function uploadStreams(){
     <button id="btn-add-community" type="button">Добавить сообщество</button>
   </div>
   <div id="community-list"></div>
-</div>
 
-<div class="grid">
-  <div class="card">
-    <h3 style="margin-top:0">D) Загрузка VK таблиц</h3>
-    <div class="row">
-      <select id="vk-kind">
-        <option value="campaigns">Кампании</option>
-        <option value="groups">Группы</option>
-        <option value="ads">Объявления</option>
-      </select>
-      <input id="vk-release" placeholder="release_id (авто)" readonly />
-      <input id="vk-community" placeholder="community_id (выбери в таблице выше)" />
-      <input type="file" id="vk-file" accept=".xlsx" />
-      <button id="btn-upload-vk" type="button">Загрузить</button>
-    </div>
-    <pre id="vk-out">—</pre>
-  </div>
-
-  <div class="card">
-    <h3 style="margin-top:0">E) Демография / Гео</h3>
-    <div class="row">
-      <select id="dg-kind">
-        <option value="demo">Демография</option>
-        <option value="countries">Страны</option>
-        <option value="cities">Города</option>
-      </select>
-      <input id="dg-release" placeholder="release_id (авто)" readonly />
-      <input id="dg-community" placeholder="community_id (выбери в таблице выше)" />
-      <input type="file" id="dg-file" accept=".xlsx" />
-      <button id="btn-upload-dg" type="button">Загрузить</button>
-    </div>
-    <pre id="dg-out">—</pre>
+  <div class="row" style="margin-top:10px">
+    <input id="upload-release-id" placeholder="release_id (авто)" readonly />
+    <input id="community-id" placeholder="community_id (выбрать выше)" />
+    <span class="muted small">Для загрузок/удалений выбирай community_id в таблице сообществ.</span>
   </div>
 </div>
 
+<!-- D) Кампании -->
 <div class="card">
-  <h3 style="margin-top:0">F) Стримы (на весь релиз)</h3>
+  <h3 style="margin-top:0">D) Кампании (VK)</h3>
   <div class="row">
-    <input id="s-release" placeholder="release_id (авто)" readonly />
-    <input type="file" id="s-file" accept=".xlsx" />
-    <button id="btn-upload-streams" type="button">Загрузить</button>
+    <input type="file" id="file-campaigns" accept=".xlsx" />
+    <button type="button" onclick="uploadVkKind('campaigns','file-campaigns','out-campaigns')">Загрузить</button>
+    <button class="danger" type="button" onclick="deleteRaw('campaigns','out-campaigns')">Удалить прикреплённую таблицу</button>
   </div>
-  <pre id="s-out">—</pre>
+  <pre id="out-campaigns">—</pre>
+</div>
+
+<!-- E) Группы -->
+<div class="card">
+  <h3 style="margin-top:0">E) Группы (VK)</h3>
+  <div class="row">
+    <input type="file" id="file-groups" accept=".xlsx" />
+    <button type="button" onclick="uploadVkKind('groups','file-groups','out-groups')">Загрузить</button>
+    <button class="danger" type="button" onclick="deleteRaw('groups','out-groups')">Удалить прикреплённую таблицу</button>
+  </div>
+  <pre id="out-groups">—</pre>
+</div>
+
+<!-- F) Объявления -->
+<div class="card">
+  <h3 style="margin-top:0">F) Объявления (VK)</h3>
+  <div class="row">
+    <input type="file" id="file-ads" accept=".xlsx" />
+    <button type="button" onclick="uploadVkKind('ads','file-ads','out-ads')">Загрузить</button>
+    <button class="danger" type="button" onclick="deleteRaw('ads','out-ads')">Удалить прикреплённую таблицу</button>
+  </div>
+  <pre id="out-ads">—</pre>
+</div>
+
+<!-- G) Демография -->
+<div class="card">
+  <h3 style="margin-top:0">G) Демография (VK)</h3>
+  <div class="row">
+    <input type="file" id="file-demo" accept=".xlsx" />
+    <button type="button" onclick="uploadDemoGeoKind('demo','file-demo','out-demo')">Загрузить</button>
+    <button class="danger" type="button" onclick="deleteRaw('demo','out-demo')">Удалить прикреплённую таблицу</button>
+  </div>
+  <pre id="out-demo">—</pre>
+</div>
+
+<!-- H) Страны -->
+<div class="card">
+  <h3 style="margin-top:0">H) Страны (VK)</h3>
+  <div class="row">
+    <input type="file" id="file-countries" accept=".xlsx" />
+    <button type="button" onclick="uploadDemoGeoKind('countries','file-countries','out-countries')">Загрузить</button>
+    <button class="danger" type="button" onclick="deleteRaw('countries','out-countries')">Удалить прикреплённую таблицу</button>
+  </div>
+  <pre id="out-countries">—</pre>
+</div>
+
+<!-- I) Города -->
+<div class="card">
+  <h3 style="margin-top:0">I) Города (VK)</h3>
+  <div class="row">
+    <input type="file" id="file-cities" accept=".xlsx" />
+    <button type="button" onclick="uploadDemoGeoKind('cities','file-cities','out-cities')">Загрузить</button>
+    <button class="danger" type="button" onclick="deleteRaw('cities','out-cities')">Удалить прикреплённую таблицу</button>
+  </div>
+  <pre id="out-cities">—</pre>
+</div>
+
+<!-- J) Стримы -->
+<div class="card">
+  <h3 style="margin-top:0">J) Стримы (на весь релиз)</h3>
+  <div class="row">
+    <input id="streams-release-id" placeholder="release_id (авто)" readonly />
+    <input type="file" id="streams-file" accept=".xlsx" />
+    <button type="button" onclick="uploadStreams()">Загрузить</button>
+    <button class="danger" type="button" onclick="deleteStreams()">Удалить стримы</button>
+  </div>
+  <pre id="streams-out">—</pre>
 </div>
 
 <script>
@@ -499,10 +551,6 @@ $('release-select').addEventListener('change', onSelectRelease);
 $('btn-create-release').addEventListener('click', createRelease);
 $('btn-add-community').addEventListener('click', addCommunity);
 $('btn-publish').addEventListener('click', togglePublish);
-
-$('btn-upload-vk').addEventListener('click', uploadVk);
-$('btn-upload-dg').addEventListener('click', uploadDemoGeo);
-$('btn-upload-streams').addEventListener('click', uploadStreams);
 
 /** ---------- Init ---------- */
 refresh();
