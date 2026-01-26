@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <title>Lotus · Admin MVP</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:,">
 <style>
   body{font-family:system-ui;background:#0b0b14;color:#fff;padding:20px}
   .card{background:#141428;padding:16px;border-radius:12px;margin-bottom:16px}
@@ -18,15 +19,8 @@
 <body>
 
 <h2>Lotus · Admin MVP</h2>
-
-<div class="card">
-  <h3>0) Настройки</h3>
-  <div class="row">
-    <input id="api-url" placeholder="GAS Web App URL" />
-    <input id="api-key" placeholder="API_KEY (как в GAS)" />
-    <button id="btn-save-settings" type="button">Сохранить</button>
-    <span class="muted" id="settings-status"></span>
-  </div>
+<div class="muted" style="margin-bottom:16px">
+  Backend: Yandex Function → GAS → Google Sheets
 </div>
 
 <div class="card">
@@ -93,35 +87,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
+/** ===============================
+ *  CONFIG (замени на свой endpoint)
+ *  =============================== */
+const API_URL = "PASTE_YANDEX_FUNCTION_URL_HERE";
+
 /** ---------- Utilities ---------- */
 const $ = (id) => document.getElementById(id);
-
 function setOut(id, obj){
   $(id).textContent = (typeof obj === 'string') ? obj : JSON.stringify(obj, null, 2);
 }
 
-function loadSettings(){
-  const apiUrl = localStorage.getItem('LOTUS_API_URL') || '';
-  const apiKey = localStorage.getItem('LOTUS_API_KEY') || '';
-  $('api-url').value = apiUrl;
-  $('api-key').value = apiKey;
-}
-
-function saveSettings(){
-  const apiUrl = $('api-url').value.trim();
-  const apiKey = $('api-key').value.trim();
-  localStorage.setItem('LOTUS_API_URL', apiUrl);
-  localStorage.setItem('LOTUS_API_KEY', apiKey);
-  $('settings-status').textContent = 'сохранено';
-  setTimeout(()=> $('settings-status').textContent = '', 1500);
-}
-
 async function api(action, data){
-  const API_URL = (localStorage.getItem('LOTUS_API_URL') || '').trim();
-  const API_KEY = (localStorage.getItem('LOTUS_API_KEY') || '').trim();
-  if (!API_URL) throw new Error('Не задан GAS Web App URL (блок "Настройки")');
-  if (!API_KEY) throw new Error('Не задан API_KEY (блок "Настройки")');
-
+  if (!API_URL || API_URL.includes('PASTE_')) {
+    throw new Error('Не задан API_URL (endpoint Yandex Function).');
+  }
   const res = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -129,7 +109,7 @@ async function api(action, data){
   });
 
   const json = await res.json().catch(() => null);
-  if (!json) throw new Error('Ответ не JSON (проверь деплой GAS и URL)');
+  if (!json) throw new Error('Ответ не JSON (проверь Yandex Function)');
   if (!json.ok) throw new Error(json.error || 'Unknown API error');
   return json.data;
 }
@@ -159,7 +139,7 @@ async function createRelease(){
     const data = await api("createRelease", { title, password });
     setOut('r-out', data);
 
-    // удобно: автоподставим release_id в поля ниже
+    // автоподстановка release_id в поля ниже
     if (data.release_id){
       $('c-release').value = data.release_id;
       $('vk-release').value = data.release_id;
@@ -210,12 +190,10 @@ async function uploadDemoGeo(){
     const file = $('dg-file').files[0];
 
     const all = await readExcelFirstSheet(file);
-
     const meta = all.slice(0,5);
     const header = all[5];
     const rows = all.slice(6).filter(r => r && r.length && r.some(v => String(v ?? '').trim() !== ''));
 
-    // В твоих файлах campaign_id/campaign_name лежат в мета-строках (обычно во 2-й колонке)
     const campaign_id = String((meta[0] && meta[0][1]) || '').trim();
     const campaign_name = String((meta[1] && meta[1][1]) || '').trim();
     const period_from = String((meta[3] && meta[3][1]) || '').trim();
@@ -236,11 +214,14 @@ async function uploadStreams(){
   try{
     const release_id = $('s-release').value.trim();
     const file = $('s-file').files[0];
+
     const rows = await readExcelFirstSheet(file);
 
-    // Обычно: [Дата, ok, vk, yandex] — заголовок в первой строке.
-    const headerRow = rows.shift() || [];
-    // Нормализуем заголовки в контракт streams_raw
+    // если в первом ряду заголовки, удаляем
+    const first = rows[0] || [];
+    const looksLikeHeader = String(first[0] || '').toLowerCase().includes('дата') || String(first[0] || '').toLowerCase().includes('date');
+    if (looksLikeHeader) rows.shift();
+
     const header = ["date","streams_ok","streams_vk","streams_yandex"];
 
     const dataRows = rows
@@ -255,9 +236,6 @@ async function uploadStreams(){
 }
 
 /** ---------- Bind UI ---------- */
-loadSettings();
-
-$('btn-save-settings').addEventListener('click', saveSettings);
 $('btn-create-release').addEventListener('click', createRelease);
 $('btn-add-community').addEventListener('click', addCommunity);
 $('btn-upload-vk').addEventListener('click', uploadVk);
