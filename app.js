@@ -948,7 +948,7 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
           formatInt_(x.listens),
           formatInt_(x.adds),
           formatInt_(x.segments),
-          x.avgCost==null?"—":formatMoney_(x.avgCost)
+          x.avgCost==null ? "—" : formatMoney2_(x.avgCost)
         ])
       ));
     }
@@ -1005,8 +1005,8 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
       tr.innerHTML = `
         <td>${escapeHtml_(String(r2["Название объявления"]||r2["ID объявления"]||r2["ID объявления"]||"—"))}</td>
         <td>${formatMoney2_(spent)}</td>
-        <td>${formatInt_(num_(row["Показы"]))}</td>
-        <td>${formatInt_(num_(row["Начали прослушивание"]))}</td>
+        <td>${formatInt_(num_(r2["Показы"]))}</td>
+        <td>${formatInt_(num_(r2["Начали прослушивание"]))}</td>
         <td>${formatInt_(adds)}</td>
         <td>${avg==null?"—":formatMoney2_(avg)}</td>
       `;
@@ -1075,13 +1075,13 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
           <div style="font-weight:900; margin-bottom:6px">Все мужчины</div>
           <div>Показы: <b>${formatInt_(maleImpr)}</b> (${pct_(maleImpr, totalImpr)})</div>
           <div>Клики: <b>${formatInt_(maleClicks)}</b> (${pct_(maleClicks, totalClicks)})</div>
-          <div>Цена за результат: <b>${maleCost==null?"—":formatMoney_(maleCost)}</b></div>
+          <div>Цена за результат: <b>${maleCost==null?"—":formatMoney2_(maleCost)}</b></div>
         </div>
         <div>
           <div style="font-weight:900; margin-bottom:6px">Все женщины</div>
           <div>Показы: <b>${formatInt_(femaleImpr)}</b> (${pct_(femaleImpr, totalImpr)})</div>
           <div>Клики: <b>${formatInt_(femaleClicks)}</b> (${pct_(femaleClicks, totalClicks)})</div>
-          <div>Цена за результат: <b>${femaleCost==null?"—":formatMoney_(femaleCost)}</b></div>
+          <div>Цена за результат: <b>${femaleCost==null?"—":formatMoney2_(femaleCost)}</b></div>
         </div>
       </div>
     `;
@@ -1475,15 +1475,6 @@ async function readXlsx_(file){
       const y = toY(Number(p.y||0));
       d += (i===0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
     });
-
-    const tick = document.createElementNS("http://www.w3.org/2000/svg","line");
-    tick.setAttribute("x1", px);
-    tick.setAttribute("x2", px);
-    tick.setAttribute("y1", h-pad);
-    tick.setAttribute("y2", h-pad+6);
-    tick.setAttribute("stroke", "rgba(0,0,0,.25)");
-    tick.setAttribute("stroke-width", "2");
-    svgEl.appendChild(tick);
      
     const path = document.createElementNS(svgEl.namespaceURI, "path");
     path.setAttribute("d", d);
@@ -1512,6 +1503,14 @@ async function readXlsx_(file){
     for (let i=0;i<n;i++){
       if (i % step !== 0 && i !== n-1) continue;
       const px = pad + i*xStep;
+      const tick = document.createElementNS("http://www.w3.org/2000/svg","line");
+       tick.setAttribute("x1", px);
+       tick.setAttribute("x2", px);
+       tick.setAttribute("y1", h-pad);
+       tick.setAttribute("y2", h-pad+6);
+       tick.setAttribute("stroke", "rgba(0,0,0,.25)");
+       tick.setAttribute("stroke-width", "2");
+       svgEl.appendChild(tick);
       const t = document.createElementNS("http://www.w3.org/2000/svg","text");
       t.setAttribute("x", px);
       t.setAttribute("y", h - 8);
