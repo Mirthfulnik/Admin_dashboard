@@ -172,6 +172,11 @@ body{
   background: rgba(0,0,0,.6);
   padding:16px;
 }
+
+.modal[hidden]{
+  display: none !important;
+}
+
 .modalCard{
   width:min(720px, 100%);
   background: rgba(18,22,34,.97);
