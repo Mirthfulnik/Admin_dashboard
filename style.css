@@ -255,10 +255,11 @@ body{
 
 /* Логотип в шапке листа */
 .lotusLogo{
-  height: 22px;
+  height: 120px;
   width: auto;
   display:block;
   opacity: 1;
+  margin: 16px;
 }
 
 .sheetHeader{display:flex; align-items:center; justify-content:space-between; gap:10px}
