@@ -1400,7 +1400,7 @@ async function readXlsx_(file){
     base.setAttribute("x2", w-pad);
     base.setAttribute("y1", h-pad);
     base.setAttribute("y2", h-pad);
-    base.setAttribute("stroke", "rgba(255,255,255,.25)");
+    base.setAttribute("stroke", "rgba(0,0,0,.18)");
     base.setAttribute("stroke-width", "2");
     svgEl.appendChild(base);
 
@@ -1429,7 +1429,7 @@ async function readXlsx_(file){
       tx.setAttribute("y", h - 10);
       tx.setAttribute("text-anchor", "middle");
       tx.setAttribute("font-size", "12");
-      tx.setAttribute("fill", "rgba(255,255,255,.75)");
+      tx.setAttribute("fill", "rgba(0,0,0,.70)");
       tx.textContent = cat;
       svgEl.appendChild(tx);
     });
@@ -1476,6 +1476,15 @@ async function readXlsx_(file){
       d += (i===0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
     });
 
+    const tick = document.createElementNS("http://www.w3.org/2000/svg","line");
+    tick.setAttribute("x1", px);
+    tick.setAttribute("x2", px);
+    tick.setAttribute("y1", h-pad);
+    tick.setAttribute("y2", h-pad+6);
+    tick.setAttribute("stroke", "rgba(0,0,0,.25)");
+    tick.setAttribute("stroke-width", "2");
+    svgEl.appendChild(tick);
+     
     const path = document.createElementNS(svgEl.namespaceURI, "path");
     path.setAttribute("d", d);
     path.setAttribute("fill", "none");
@@ -1508,7 +1517,7 @@ async function readXlsx_(file){
       t.setAttribute("y", h - 8);
       t.setAttribute("text-anchor", "middle");
       t.setAttribute("font-size", "12");
-      t.setAttribute("fill", "rgba(255,255,255,.75)");
+      t.setAttribute("fill", "rgba(0,0,0,.65)");
       t.textContent = fmtDateShort_(points[i].x);
       svgEl.appendChild(t);
     }
