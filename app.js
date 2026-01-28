@@ -1143,21 +1143,21 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
   const ws = wb.Sheets[wb.SheetNames[0]];
 
   // Пропускаем первые 5 строк (служебные), 6-я строка становится заголовками
-  const json = XLSX.utils.sheet_to_json(ws, { defval:"", range: 5 });
+  const jsonRaw = XLSX.utils.sheet_to_json(ws, { defval:"", range: 5 });
+const json = jsonRaw.map(normalizeRowKeys_);
 
-  if (!json.length) throw new Error("empty demo");
+if (!json.length) throw new Error("empty demo");
 
-  // Keep only rows having Age+Gender
-  const out = [];
-  for (const row of json){
-    const age = row["Возраст"] ?? row["Age"] ?? "";
-    const gender = row["Пол"] ?? row["Gender"] ?? "";
-    if (!age || !gender) continue;
-    out.push(row);
-  }
-  if (!out.length) return json; // fallback
-  return out;
+// Keep only rows having Age+Gender
+const out = [];
+for (const row of json){
+  const age = row["Возраст"] ?? row["Age"] ?? "";
+  const gender = row["Пол"] ?? row["Gender"] ?? "";
+  if (!age || !gender) continue;
+  out.push(row);
 }
+if (!out.length) return json; // fallback
+return out;
 
   async function readXlsx_(file){
     const buf = await file.arrayBuffer();
@@ -1190,7 +1190,14 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
       const a = normalizeAge_(row["Возраст"]);
       const impr = num_(row["Показы"]);
       const clicks = num_(row["Клики"]);
-      const cost = numOrNull_(row["Цена за результат, ₽"] ?? row["Цена за результат, Р"] ?? row["Цена за результат"] ?? "");
+      const cost = numOrNull_(
+  row["Цена за результат, ₽"] ??
+  row["Цена за результат, Р"] ??
+  row["Цена за результат"] ??
+  row[normKey_("Цена за результат, ₽")] ??
+  row[normKey_("Цена за результат, Р")] ??
+  ""
+);
       genderImpr[g] = (genderImpr[g]||0) + impr;
       genderClicks[g] = (genderClicks[g]||0) + clicks;
       ageImpr[a] = (ageImpr[a]||0) + impr;
