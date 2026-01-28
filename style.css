@@ -266,6 +266,53 @@ body{
   #page-report{display:block !important}
   #report-root{margin:0}
   .pageSheet{
+
+    /* ===== Report sheets: SVG text should be dark on white pages ===== */
+.sheet .svgChart text { fill: rgba(0,0,0,.75) !important; }
+.sheet .svgChart .val { fill: rgba(0,0,0,.85) !important; }
+
+/* ===== VK-like layout for Demography blocks ===== */
+.vkRow{
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 18px;
+  align-items: start;
+  margin: 14px 0 18px;
+}
+.vkSide{
+  padding-top: 34px; /* чтобы визуально совпасть с “заголовком графика” */
+}
+.vkLegend{
+  display: grid;
+  gap: 10px;
+}
+.vkLegendRow{
+  display: grid;
+  grid-template-columns: 12px 1fr 70px 90px;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+.vkDot{
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.vkLab{ opacity: .95; }
+.vkPct{ opacity: .55; text-align: right; }
+.vkVal{ font-weight: 700; text-align: right; }
+.vkTotalRow{
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0,0,0,.08);
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.vkTotalLab{ font-weight: 700; opacity: .9; }
+.vkTotalVal{ font-weight: 800; }
+
     width:auto; height:auto; margin:0; border:none; border-radius:0; box-shadow:none;
     page-break-after: always;
   }
