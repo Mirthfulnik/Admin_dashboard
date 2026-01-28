@@ -1046,6 +1046,11 @@ const genderCats = ["Мужчины","Женщины","Пол не указан"
 const totalImpr = sumObj_(agg.genderImpr);
 const totalClicks = sumObj_(agg.genderClicks);
 
+const genderImpr   = agg.genderImpr || {};
+const genderClicks = agg.genderClicks || {};
+const totalImpr    = sumObj_(genderImpr);
+const totalClicks  = sumObj_(genderClicks);
+     
 // делаем “вк-таблицу” по выбранной метрике.
 // В ВК в UI можно переключать Показы/Клики. В отчёте покажем обе строки (Показы/Клики) через оверлей,
 // а таблицу сделаем по “Показы” (как на скрине с “Показы”), и ниже можем добавить “Итого: …”
@@ -1098,8 +1103,6 @@ inner.appendChild(svgGroupedBarChart_("Распределение по возр�
 ], { overlayPairs:true, pairSize:2, showValues:false }));
 
     // Detail block
-    const totalImpr = sumObj_(agg.genderImpr);
-    const totalClicks = sumObj_(agg.genderClicks);
     const maleImpr = agg.genderImpr["Мужчины"] || 0;
     const femaleImpr = agg.genderImpr["Женщины"] || 0;
     const maleClicks = agg.genderClicks["Мужчины"] || 0;
