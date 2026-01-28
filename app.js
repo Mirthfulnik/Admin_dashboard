@@ -328,6 +328,14 @@
     renderEditor_();
   });
 
+   function closeAllModals_(){
+  const ids = ["streams-modal","community-modal","delete-modal"];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+}
+   
   // Streams modal
   const streamsModal = $("#streams-modal");
   $("#btn-add-streams").addEventListener("click", ()=>{
@@ -335,6 +343,7 @@
     $("#streams-preview-wrap").hidden = true;
     $("#btn-save-streams").disabled = true;
     $("#streams-file").value = "";
+    closeAllModals_();
     streamsModal.hidden = false;
   });
   $("#btn-close-streams-modal").addEventListener("click", ()=> streamsModal.hidden = true);
@@ -383,6 +392,7 @@
   $("#btn-add-community").addEventListener("click", ()=>{
     $("#cm-name").value = "";
     $("#cm-vkId").value = "";
+    closeAllModals_();
     commModal.hidden = false;
     $("#cm-name").focus();
   });
@@ -674,6 +684,7 @@
     $("#delete-title").textContent = r.title;
     $("#delete-confirm").value = "";
     $("#btn-confirm-delete").disabled = true;
+    closeAllModals_();
     deleteModal.hidden = false;
     $("#delete-confirm").focus();
   }
