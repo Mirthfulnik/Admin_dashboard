@@ -365,3 +365,64 @@ body{
 .vkTotalLab{ font-weight: 700; opacity: .9; }
 .vkTotalVal{ font-weight: 800; }
 
+/* ===== COVER SLIDE ===== */
+
+.coverHeader{
+  display:grid;
+  grid-template-columns: auto 1fr auto;
+  align-items:center;
+  margin-top:10px;
+}
+
+.coverTitles{
+  text-align:center;
+  line-height:1.2;
+}
+
+/* H1 — главный заголовок */
+.coverTitleMain{
+  font-weight:950;
+  font-size:56px;   /* презентационный размер */
+  letter-spacing:1px;
+}
+
+/* Подзаголовок */
+.coverTitleSub{
+  font-weight:700;
+  font-size:26px;   /* H1 */
+  margin-top:6px;
+  opacity:.85;
+}
+
+/* Центрирование блока с обложкой */
+.coverCenter{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.coverBlock{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+/* Обложка */
+.coverImg{
+  width:360px;
+  height:360px;
+  object-fit:cover;
+  border-radius:16px;
+  border:1px solid rgba(0,0,0,.15);
+}
+
+/* H2 — название релиза */
+.coverName{
+  margin-top:18px;
+  font-weight:900;
+  font-size:28px;   /* H2 */
+  text-align:center;
+}
+
+
