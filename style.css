@@ -347,8 +347,36 @@ body{
   line-height: 1.1;       
 }
 
-.creativesRow{display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:12px}
-.creativeImg{height:210px; flex:1; object-fit:contain; border-radius: 10px; border:1px solid rgba(0,0,0,.12); background:#fafafa}
+/* Креативы: центрирование и масштаб */
+.creativesRow{
+  display:flex;
+  justify-content:center;   /* центр по слайду */
+  align-items:center;
+  gap:22px;
+  margin-top: 10px;
+  flex-wrap: wrap;          /* если 3-4 креатива — перенос */
+}
+
+/* Само изображение (без “рамки”) */
+.creativeImg{
+  height: 320px;            /* больше */
+  width: min(460px, 46%);   /* крупно, но чтобы влезало 2 в ряд */
+  object-fit: contain;
+
+  /* убрать “рамку области” */
+  background: transparent !important;
+  border: 0 !important;
+
+  border-radius: 14px;      /* можно оставить мягкие углы */
+  display:block;
+}
+
+/* подпись снизу (вместо инлайнового style="...") */
+.creativesNote{
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: .75;
+}
 
 .table{
   width:100%;
