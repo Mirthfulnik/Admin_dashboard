@@ -518,4 +518,23 @@ body{
   text-align:center;
 }
 
+/* ===== Детализация: плотнее таблица, чтобы влезало до 16 строк ===== */
+.detailTable{
+  margin-top: 0;              /* мы уже дали slideSpacer */
+  font-size: 11px;            /* чуть меньше, чем дефолт */
+}
+.detailTable th,
+.detailTable td{
+  padding: 6px 8px;           /* было 8px 9px в .table */
+  line-height: 1.15;
+}
+.detailTable th{
+  font-weight: 900;
+}
 
+/* подпись под таблицей */
+.tableNote{
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: .75;
+}
