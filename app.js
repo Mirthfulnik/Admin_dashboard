@@ -869,7 +869,7 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
   }
 
   function renderCoverPage_(r){
-  const el = sheet_(true);
+  const el = sheet_(false);
   const inner = el.querySelector(".sheetInner");
 
   inner.insertAdjacentHTML("beforeend", `
