@@ -978,23 +978,40 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
   }
 
   function renderCreativesPage_(r, c){
-    const el = sheet_(true);
-    const inner = el.querySelector(".sheetInner");
-    inner.insertAdjacentHTML("beforeend", `<div class="sheetTitle" style="font-size:28px">Креативы: ${escapeHtml_(c.name)}</div>`);
-    const row = document.createElement("div");
-    row.className = "creativesRow";
-    const imgs = (c.creatives||[]).slice(0,4);
-    for (const cr of imgs){
-      const img = document.createElement("img");
-      img.className = "creativeImg";
-      img.src = cr.dataUrl;
-      img.alt = cr.name || "creative";
-      row.appendChild(img);
-    }
-    inner.appendChild(row);
-    inner.insertAdjacentHTML("beforeend", `<div style="margin-top:10px; font-size:12px; opacity:.75">Показаны первые 4 креатива (MVP).</div>`);
-    return el;
+  const el = sheet_(false); // было sheet_(true)
+  const inner = el.querySelector(".sheetInner");
+
+  const pageTitle = `Креативы: ${c.name}`;
+
+  inner.insertAdjacentHTML("beforeend", `
+    <div class="slideHeader">
+      <img class="lotusLogo" src="assets/logo_black.png" alt="Lotus Music"/>
+      <div class="slideHeaderTitle">${escapeHtml_(pageTitle)}</div>
+      <img class="lotusLogo" src="assets/logo_black.png" alt="Lotus Music"/>
+    </div>
+  `);
+
+  inner.insertAdjacentHTML("beforeend", `<div class="slideSpacer"></div>`);
+
+  const row = document.createElement("div");
+  row.className = "creativesRow";
+
+  const imgs = (c.creatives||[]).slice(0,4);
+  for (const cr of imgs){
+    const img = document.createElement("img");
+    img.className = "creativeImg";
+    img.src = cr.dataUrl;
+    img.alt = cr.name || "creative";
+    row.appendChild(img);
   }
+
+  inner.appendChild(row);
+  inner.insertAdjacentHTML("beforeend",
+    `<div class="creativesNote">Показаны первые 4 креатива (MVP).</div>`
+  );
+
+  return el;
+}
 
   function renderDetailPage_(r, c){
     const el = sheet_(true);
