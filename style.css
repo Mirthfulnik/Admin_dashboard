@@ -300,11 +300,17 @@ body{
   height: 26px;
 }
 
-/* ===== KPI: 2 вертикальные колонки ===== */
+/* ===== KPI: 1 вертикальная колонка ===== */
 .kpiCols{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:18px;
+  display:flex;
+  justify-content:center;   
+}
+
+.kpiCol{
+  width: 520px;            
+  display:flex;
+  flex-direction:column;
+  gap:12px;
 }
 
 .kpiCol{
