@@ -940,18 +940,15 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
   for (const it of commItems) rowsAll = rowsAll.concat(it.community.adsRows || []);
   const k = calcKpisFromAdsRows_(rowsAll);
 
-  // 2 вертикальные колонки (сверху вниз)
+  // 1 вертикальная колонка (сверху вниз)
   inner.insertAdjacentHTML("beforeend", `
     <div class="kpiCols">
       <div class="kpiCol">
         <div class="kpiRow"><div class="kpiLabel">Потрачено всего</div><div class="kpiValue">${formatMoney2_(k.spent)}</div></div>
-        <div class="kpiRow"><div class="kpiLabel">Прослушивания</div><div class="kpiValue">${formatInt_(k.listens)}</div></div>
-        <div class="kpiRow"><div class="kpiLabel">Сегменты</div><div class="kpiValue">${formatInt_(k.segments)}</div></div>
-      </div>
-
-      <div class="kpiCol">
         <div class="kpiRow"><div class="kpiLabel">Показы</div><div class="kpiValue">${formatInt_(k.shows)}</div></div>
+        <div class="kpiRow"><div class="kpiLabel">Прослушивания</div><div class="kpiValue">${formatInt_(k.listens)}</div></div>
         <div class="kpiRow"><div class="kpiLabel">Добавления</div><div class="kpiValue">${formatInt_(k.adds)}</div></div>
+        <div class="kpiRow"><div class="kpiLabel">Сегменты</div><div class="kpiValue">${formatInt_(k.segments)}</div></div>
         <div class="kpiRow"><div class="kpiLabel">Ср. стоимость добавления</div><div class="kpiValue">${k.avgCost==null ? "—" : formatMoney2_(k.avgCost)}</div></div>
       </div>
     </div>
