@@ -1021,6 +1021,92 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
   return el;
 }
 
+   function renderDetailPages_(r, c){
+  const rows = (c.adsRows || []);
+  const total = rows.length;
+  const perPage = 16;
+
+  const pagesTotal = Math.max(1, Math.ceil(total / perPage));
+  const out = [];
+
+  // даже если total=0 — делаем 1 страницу (с пустой таблицей и шапкой)
+  for (let start = 0; start < Math.max(total, 1); start += perPage){
+    out.push(renderDetailPageChunk_(r, c, start, perPage, pagesTotal));
+    if (total === 0) break;
+  }
+  return out;
+}
+
+function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
+  const el = sheet_(false);
+  const inner = el.querySelector(".sheetInner");
+
+  const total = (c.adsRows || []).length;
+  const pageNo = Math.floor(start / perPage) + 1;
+
+  const pageTitle = pagesTotal > 1
+    ? `Детализация: ${c.name} (${pageNo}/${pagesTotal})`
+    : `Детализация: ${c.name}`;
+
+  inner.insertAdjacentHTML("beforeend", `
+    <div class="slideHeader">
+      <img class="lotusLogo" src="assets/logo_black.png" alt="Lotus Music"/>
+      <div class="slideHeaderTitle">${escapeHtml_(pageTitle)}</div>
+      <img class="lotusLogo" src="assets/logo_black.png" alt="Lotus Music"/>
+    </div>
+  `);
+
+  inner.insertAdjacentHTML("beforeend", `<div class="slideSpacer"></div>`);
+
+  const slice = (c.adsRows || []).slice(start, start + perPage);
+
+  const table = document.createElement("table");
+  table.className = "table detailTable";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Объявление</th>
+        <th>Потрачено</th>
+        <th>Показы</th>
+        <th>Прослуш.</th>
+        <th>Добавл.</th>
+        <th>Ср. цена добавл.</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+
+  const tb = table.querySelector("tbody");
+  for (const row of slice){
+    const r2 = normalizeRowKeys_(row || {});
+    const spent = num_(r2["Потрачено всего, ₽"] ?? r2["Потрачено всего, Р"] ?? r2["Потрачено всего"] ?? "");
+    const adds  = num_(r2["Добавили аудио"] ?? r2["Добавления аудио"] ?? r2["Добавили"] ?? "");
+    const avg   = safeDiv_(spent, adds);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml_(String(r2["Название объявления"] || r2["ID объявления"] || "—"))}</td>
+      <td>${formatMoney2_(spent)}</td>
+      <td>${formatInt_(num_(r2["Показы"]))}</td>
+      <td>${formatInt_(num_(r2["Начали прослушивание"]))}</td>
+      <td>${formatInt_(adds)}</td>
+      <td>${avg == null ? "—" : formatMoney2_(avg)}</td>
+    `;
+    tb.appendChild(tr);
+  }
+
+  inner.appendChild(table);
+
+  const shownFrom = total ? (start + 1) : 0;
+  const shownTo   = total ? (start + slice.length) : 0;
+  inner.insertAdjacentHTML("beforeend",
+    `<div class="tableNote">Показаны строки ${shownFrom}–${shownTo} из ${total}.</div>`
+  );
+
+  return el;
+}
+
+
   function renderDetailPage_(r, c){
     const el = sheet_(true);
     const inner = el.querySelector(".sheetInner");
