@@ -919,28 +919,43 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
 
   function renderResultsPage_(r, commItems, isMultiSummary, addLabel=false){
     // if isMultiSummary: show "Общие показатели" + mini list? In MVP: first KPI = totals across all communities
-    const el = sheet_(true);
+    const el = sheet_(false);
     const inner = el.querySelector(".sheetInner");
 
-    const pageTitle = isMultiSummary ? "Результаты продвижения (общие)" : (addLabel ? `Результаты: ${commItems[0].label}` : "Результаты продвижения");
-    inner.insertAdjacentHTML("beforeend", `<div class="sheetTitle" style="font-size:28px">${escapeHtml_(pageTitle)}</div>`);
+    const pageTitle = isMultiSummary
+    ? "Результаты продвижения (общие)"
+    : (addLabel ? `Результаты: ${commItems[0].label}` : "Результаты продвижения");
 
-    let rowsAll = [];
-    for (const it of commItems){
-      rowsAll = rowsAll.concat(it.community.adsRows || []);
-    }
-    const k = calcKpisFromAdsRows_(rowsAll);
+     inner.insertAdjacentHTML("beforeend", `
+    <div class="slideHeader">
+      <img class="lotusLogo" src="assets/logo_black.png" alt="Lotus Music"/>
+      <div class="slideHeaderTitle">${escapeHtml_(pageTitle)}</div>
+      <img class="lotusLogo" src="assets/logo_black.png" alt="Lotus Music"/>
+    </div>
+  `);
 
-    inner.insertAdjacentHTML("beforeend", `
-      <div class="kpiGrid">
-        <div class="kpi"><div class="kpiLabel">Потрачено всего</div><div class="kpiValue">${formatMoney2_(k.spent)}</div></div>
-        <div class="kpi"><div class="kpiLabel">Показы</div><div class="kpiValue">${formatInt_(k.shows)}</div></div>
-        <div class="kpi"><div class="kpiLabel">Прослушивания</div><div class="kpiValue">${formatInt_(k.listens)}</div></div>
-        <div class="kpi"><div class="kpiLabel">Добавления</div><div class="kpiValue">${formatInt_(k.adds)}</div></div>
-        <div class="kpi"><div class="kpiLabel">Сегменты</div><div class="kpiValue">${formatInt_(k.segments)}</div></div>
-        <div class="kpi"><div class="kpiLabel">Ср. стоимость добавления</div><div class="kpiValue">${k.avgCost==null ? "—" : formatMoney2_(k.avgCost)}</div></div>
+    inner.insertAdjacentHTML("beforeend", `<div class="slideSpacer"></div>`);
+
+      let rowsAll = [];
+  for (const it of commItems) rowsAll = rowsAll.concat(it.community.adsRows || []);
+  const k = calcKpisFromAdsRows_(rowsAll);
+
+  // 2 вертикальные колонки (сверху вниз)
+  inner.insertAdjacentHTML("beforeend", `
+    <div class="kpiCols">
+      <div class="kpiCol">
+        <div class="kpiRow"><div class="kpiLabel">Потрачено всего</div><div class="kpiValue">${formatMoney2_(k.spent)}</div></div>
+        <div class="kpiRow"><div class="kpiLabel">Прослушивания</div><div class="kpiValue">${formatInt_(k.listens)}</div></div>
+        <div class="kpiRow"><div class="kpiLabel">Сегменты</div><div class="kpiValue">${formatInt_(k.segments)}</div></div>
       </div>
-    `);
+
+      <div class="kpiCol">
+        <div class="kpiRow"><div class="kpiLabel">Показы</div><div class="kpiValue">${formatInt_(k.shows)}</div></div>
+        <div class="kpiRow"><div class="kpiLabel">Добавления</div><div class="kpiValue">${formatInt_(k.adds)}</div></div>
+        <div class="kpiRow"><div class="kpiLabel">Ср. стоимость добавления</div><div class="kpiValue">${k.avgCost==null ? "—" : formatMoney2_(k.avgCost)}</div></div>
+      </div>
+    </div>
+  `);
 
     if (isMultiSummary){
       const rows = commItems.map(it=>{
