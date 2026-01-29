@@ -839,7 +839,7 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
       for (let i=0; i<totalCr; i+=4){
         pages.push(renderCreativesPage_(r, c, i));
       }
-      pages.push(renderDetailPage_(r, c));
+      pages.push(...renderDetailPages_(r, c));
       pages.push(renderDemoPage_(r, c));
       pages.push(renderStreamsPage_(r));
     } else {
@@ -848,7 +848,7 @@ renderMiniPreview_(dTbl, c.demoRows.slice(0,5), ["Возраст","Пол","По
       for (const c of comms){
         pages.push(renderResultsPage_(r, [{label: c.name, community: c}], false, true));
         pages.push(renderCreativesPage_(r, c));
-        pages.push(renderDetailPage_(r, c));
+        pages.push(...renderDetailPages_(r, c));
         pages.push(renderDemoPage_(r, c));
       }
       pages.push(renderStreamsPage_(r));
