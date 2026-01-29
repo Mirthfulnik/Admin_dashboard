@@ -347,27 +347,26 @@ body{
   line-height: 1.1;       
 }
 
-/* Креативы: центрирование и масштаб */
+/* Креативы: 4 в ряд, без переноса */
 .creativesRow{
-  display:flex;
-  justify-content:center;   /* центр по слайду */
-  align-items:center;
-  gap:22px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+  justify-items: center;
+  align-items: center;
   margin-top: 10px;
-  flex-wrap: wrap;          /* если 3-4 креатива — перенос */
 }
 
-/* Само изображение (без “рамки”) */
+/* Изображение: фиксированный “слайдовый” размер под 4 в ряд */
 .creativeImg{
-  height: 360px;            /* больше */
-  width: min(520px, 48%);   /* крупно, но чтобы влезало 2 в ряд */
+  width: 245px;       /* ключ: чтобы влезло 4 */
+  height: 450px;      /* вертикальные скрины ВК */
   object-fit: contain;
 
-  /* убрать “рамку области” */
   background: transparent !important;
   border: 0 !important;
 
-  border-radius: 14px;      /* можно оставить мягкие углы */
+  border-radius: 14px;
   display:block;
 }
 
