@@ -301,34 +301,51 @@ body{
 }
 
 /* ===== KPI: 1 вертикальная колонка ===== */
+/* ===== KPI: 1 вертикальная колонка (центр) ===== */
 .kpiCols{
+  flex: 1;                 /* занимает оставшееся место на листе */
   display:flex;
-  justify-content:center;   
+  justify-content:center;  /* центр по горизонтали */
+  align-items:center;      /* центр по вертикали -> даст “воздух” снизу */
+  padding-bottom: 18px;    /* доп. воздух снизу */
 }
 
 .kpiCol{
-  width: 520px;            
+  width: 460px;            /* было 520 — делаем уже */
   display:flex;
   flex-direction:column;
-  gap:12px;
+  gap: 10px;               /* было 12 — чуть плотнее */
 }
 
-.kpiCol{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-
+/* Карточка KPI */
 .kpiRow{
   background: rgb(219,219,219);
   border:1px solid rgba(0,0,0,.12);
-  border-radius:12px;
-  padding:14px;
+  border-radius: 12px;
+
+  /* меньше “жира” внутри */
+  padding: 10px 14px;
+
+  /* центрируем содержимое */
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
 }
 
-.kpiRow .kpiLabel{font-size:14px; opacity:.75}
-.kpiRow .kpiValue{font-size:28px; font-weight:950; margin-top:6px}
+/* подпись */
+.kpiRow .kpiLabel{
+  font-size: 13px;    
+  opacity: .75;
+}
 
+/* цифра */
+.kpiRow .kpiValue{
+  font-size: 24px;     
+  font-weight: 950;
+  margin-top: 6px;         
+  line-height: 1.1;       
+}
 
 .creativesRow{display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:12px}
 .creativeImg{height:210px; flex:1; object-fit:contain; border-radius: 10px; border:1px solid rgba(0,0,0,.12); background:#fafafa}
