@@ -1385,7 +1385,7 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
         stretch: true,
         seriesColors: [COLORS.men, COLORS.click, COLORS.women, COLORS.click],
         overlayWidthRatio: 1,
-        pairGap: 10,
+        pairGap: 2,
         rx: 10,
         dualAxis: true,
         stackOverlayOnBase: true,
