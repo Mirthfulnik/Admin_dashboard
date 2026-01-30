@@ -543,11 +543,9 @@ body{
 /* ===== Demography slide (VK-like mock) ===== */
 .demoGrid{
   display:grid;
-  grid-template-columns: 220px 1fr 420px;
+  grid-template-columns: 220px 380px 260px;
   grid-template-rows: auto auto;
   gap: 22px;
-  align-items: start;
-  margin-top: 10px;
 }
 
 .demoCard{
