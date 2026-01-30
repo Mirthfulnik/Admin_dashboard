@@ -543,7 +543,7 @@ body{
 /* ===== Demography slide (VK-like mock) ===== */
 .demoGrid{
   display:grid;
-  grid-template-columns: 240px 1fr 420px;
+  grid-template-columns: 220px 295.7px 420px;
   grid-template-rows: auto auto;
   gap: 22px;
   align-items: start;
@@ -555,12 +555,13 @@ body{
   border: 1px solid rgba(255,255,255,0);
   border-radius: 22px;
   padding: 18px 18px;
+  font-size: 12px;
 }
 
-.demoLegendCard{ grid-column: 1; grid-row: 1; align-self: stretch; }
-.demoGenderCard{ grid-column: 2; grid-row: 1; }
+.demoLegendCard{ grid-column: 1; grid-row: 1; width:220px; height:244px; }
+.demoGenderCard{ grid-column: 2; grid-row: 1; width:295.7px; height:244px; }
 .demoTableCard{  grid-column: 3; grid-row: 1; padding: 16px 18px; display:flex; align-items:center; justify-content:center; }
-.demoTopCard{    grid-column: 1; grid-row: 2; }
+.demoTopCard{    grid-column: 1; grid-row: 2; width:220px; height:221.06px; }
 .demoAgeCard{    grid-column: 2 / 4; grid-row: 2; padding: 14px 18px 10px; }
 
 .demoLegendList{
@@ -649,3 +650,23 @@ body{
 /* Make charts breathe inside demography cards */
 .demoCard .chartBox{ box-shadow:none; background: transparent; padding: 0; }
 .demoCard .chartTitle{ font-weight: 900; }
+
+
+/* Demography: fixed font sizing */
+.demoLegendCard, .demoTopCard{ font-size:14px; }
+
+.demoGrid, .demoGrid *{ user-select:none; }
+.pageSheet .demoGrid ::selection{ background: transparent; }
+
+.pageSheet .chartBox{ border-color: rgba(0,0,0,0) !important; }
+.demoCard .chartBox{ background: transparent !important; border-color: rgba(0,0,0,0) !important; }
+
+.demoGenderCard{ font-size:12px; }
+.demoGenderCard .chartTitle{ font-size:12px; }
+
+.demoLegendItem, .demoTopText, .demoTopTitle, .demoTopSub{ font-weight:400; }
+.demoLegendItem span, .demoTopRow span{ font-weight:400; }
+
+.demoLegendCard{ padding: 16px 16px; }
+.demoTopCard{ padding: 16px 16px; }
+.demoGenderCard{ padding: 16px 16px; }
