@@ -1215,11 +1215,11 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
     // 1) Legend card
     const legendCard = card("demoLegendCard");
     legendCard.innerHTML = `
-      <div class="demoLegendList">
-        <div class="demoLegendItem"><span class="demoSw" style="background:${COLORS.men}"></span><span>${capWords_("М • показы")}</span></div>
-        <div class="demoLegendItem"><span class="demoSw" style="background:${COLORS.women}"></span><span>${capWords_("Ж • показы")}</span></div>
-        <div class="demoLegendItem"><span class="demoSw" style="background:${COLORS.none}"></span><span>${capWords_("Нет пола • показы")}</span></div>
-        <div class="demoLegendItem"><span class="demoSw" style="background:${COLORS.click}"></span><span>${capWords_("Клики")}</span></div>
+      <div class="demoLegendList" role="list">
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.men}"></span><span>${capWords_("М • показы")}</span></div>
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.women}"></span><span>${capWords_("Ж • показы")}</span></div>
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.none}"></span><span>${capWords_("Нет пола • показы")}</span></div>
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.click}"></span><span>${capWords_("Клики")}</span></div>
       </div>
     `;
     grid.appendChild(legendCard);
