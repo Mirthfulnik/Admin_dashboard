@@ -1191,6 +1191,21 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
       click: "rgb(132,204,22)"    // green
     };
 
+     const capFirst_ = (s)=>{
+  const str = String(s || "");
+  if (!str) return str;
+  if (str.length === 1) return str.toUpperCase(); // М / Ж
+  return str.slice(0,1).toUpperCase() + str.slice(1).toLowerCase();
+};
+
+// Для строк вида "Нет пола - показы" или "М - показы"
+const capDashParts_ = (s)=>{
+  const str = String(s || "");
+  return str
+    .split(/\s*-\s*/g)
+    .map(part => capFirst_(part.trim()))
+    .join(" - ");
+};
 
     // Capitalize words inside demoGrid (первая буква заглавная, остальные строчные).
     // Однобуквенные токены (М/Ж) и токены с цифрами (25-34) не трогаем.
@@ -1216,10 +1231,10 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
     const legendCard = card("demoLegendCard");
     legendCard.innerHTML = `
       <div class="demoLegendList" role="list">
-        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.men}"></span><span>${capWords_("М • показы")}</span></div>
-        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.women}"></span><span>${capWords_("Ж • показы")}</span></div>
-        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.none}"></span><span>${capWords_("Нет пола • показы")}</span></div>
-        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.click}"></span><span>${capWords_("Клики")}</span></div>
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.men}"></span><span>${capDashParts_("М • показы")}</span></div>
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.women}"></span><span>${capDashParts_("Ж • показы")}</span></div>
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.none}"></span><span>${capDashParts_("Нет пола • показы")}</span></div>
+        <div class="demoLegendItem" role="listitem"><span class="demoSw" style="background:${COLORS.click}"></span><span>${capDashParts_("Клики")}</span></div>
       </div>
     `;
     grid.appendChild(legendCard);
@@ -1227,23 +1242,24 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
     // 2) Gender chart card
     const genderCard = card("demoGenderCard");
     const genderChart = svgGroupedBarChart_(
-      capWords_("Распределение по полу"),
+      capFirst_("Распределение по полу"),
       genderCats,
       [
-        { name: capWords_("Показы"), data: Object.fromEntries(genderCats.map(k=>[k, genderImpr[k]||0])) },
-        { name: capWords_("Клики"),  data: Object.fromEntries(genderCats.map(k=>[k, genderClicks[k]||0])) }
+        { name: capFirst_"Показы"), data: Object.fromEntries(genderCats.map(k=>[k, genderImpr[k]||0])) },
+        { name: capFirst_("Клики"),  data: Object.fromEntries(genderCats.map(k=>[k, genderClicks[k]||0])) }
       ],
       {
+        showXAxisLabels: false,
         overlayPairs: true,
         pairSize: 2,
         showValues: false,
         showLegend: false,
         stretch: true,
         xLabelFontSize: 18,
-         wrapXLabels: false,
-         xLabelLineHeight: 16,
-         xLabelPadBottom: 6,
-         xLabelLetterSpacing: 6,
+        wrapXLabels: false,
+        xLabelLineHeight: 16,
+        xLabelPadBottom: 6,
+        xLabelLetterSpacing: 6,
 
         categoryColors: {
           "Мужчины": COLORS.men,
@@ -1343,7 +1359,7 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
     const pctSeg = (v)=> totalKnownClicks ? Math.round((v/totalKnownClicks)*100) : 0;
 
     topCard.innerHTML = `
-      <div class="demoTopTitle">${capWords_("ТОП-3 сегмента")}<br/><span class="demoTopSub">• ${capWords_("клики")}</span></div>
+      <div class="demoTopTitle">${capFirst_("ТОП-3 сегмента")}<br/><span class="demoTopSub">• ${capFirst_("клики")}</span></div>
       <div class="demoTopList">
         ${[0,1,2].map(i=>{
           const it = top[i];
@@ -1375,13 +1391,13 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
     }
 
     const ageChart = svgGroupedBarChart_(
-      capWords_("Распределение по возрасту"),
+      capFirst_("Распределение по возрасту"),
       ageCats,
       [
-        { name: capWords_("М • показы"), data: ageMenImpr },
-        { name: capWords_("М • клики"),  data: ageMenClicks },
-        { name: capWords_("Ж • показы"), data: ageWomenImpr },
-        { name: capWords_("Ж • клики"),  data: ageWomenClicks }
+        { name: capFirst_("М • показы"), data: ageMenImpr },
+        { name: capFirst_"М • клики"),  data: ageMenClicks },
+        { name: capFirst_("Ж • показы"), data: ageWomenImpr },
+        { name: capFirst_("Ж • клики"),  data: ageWomenClicks }
       ],
       {
         overlayPairs: true,
@@ -1835,6 +1851,7 @@ svgEl.appendChild(label);
   categories.forEach((cat, ci) => {
     const gx = pad + ci * groupW;
 
+    if (opts.showXAxisLabels !== false) {
     // x label
     const label = document.createElementNS(svgEl.namespaceURI, "text");
     label.setAttribute("x", gx + groupW / 2);
@@ -1844,6 +1861,7 @@ svgEl.appendChild(label);
     label.setAttribute("fill", "rgba(0,0,0,.75)");
     label.textContent = cat;
     svgEl.appendChild(label);
+   } 
 
     for (let p = 0; p < pairCount; p++) {
       const pxSlot = gx + p * (pairW + pairGap);
