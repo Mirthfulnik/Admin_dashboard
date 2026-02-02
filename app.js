@@ -1790,6 +1790,21 @@ svgEl.appendChild(label);
     maxBase = maxOver = max;
   }
 
+   // === Headroom по Y (чтобы столбцы не упирались в верх svg) ===
+  const yPadRatio = (opts.yPadRatio ?? 1.2); // 12% запас сверху (попробуй 1.15 / 1.2 при желании)
+
+  // общий max (для обычного режима)
+  max = Math.max(1, max * yPadRatio);
+
+  // если dualAxis — нужно поднять потолок и для base/overlay отдельно
+  if (overlayPairs && opts.dualAxis) {
+    maxBase = Math.max(1, maxBase * yPadRatio);
+    maxOver = Math.max(1, maxOver * yPadRatio);
+  } else {
+    maxBase = maxOver = max;
+  }
+
+
   const baseY = h - pad;
 
   // baseline
