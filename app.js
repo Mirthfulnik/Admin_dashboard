@@ -1804,6 +1804,26 @@ if (overlayPairs && opts.dualAxis) {
   maxBase = maxOver = max;
 }
 
+     // Если мы именно СТЭКАЕМ overlay на base — нужен общий максимум суммы,
+// иначе bh1 и bh2 по разным шкалам дадут переполнение вверх.
+let maxStack = null;
+
+if (overlayPairs && opts.stackOverlayOnBase) {
+  const stackVals = [];
+  for (const cat of categories) {
+    for (let p = 0; p < pairCount; p++) {
+      const baseSeries = series[p * pairSize + 0];
+      const overSeries = series[p * pairSize + 1];
+      const v1 = Number((baseSeries?.data && baseSeries.data[cat]) || 0);
+      const v2 = Number((overSeries?.data && overSeries.data[cat]) || 0);
+      stackVals.push(v1 + v2);
+    }
+  }
+  maxStack = Math.max(1, ...stackVals);
+  maxStack = Math.max(1, maxStack * yPadRatio); // тот же headroom
+}
+
+
   const baseY = h - pad;
 
   // baseline
@@ -1889,8 +1909,17 @@ if (overlayPairs && opts.dualAxis) {
         const v1 = Number((baseSeries?.data && baseSeries.data[cat]) || 0);
         const v2 = Number((overSeries?.data && overSeries.data[cat]) || 0);
 
-        const bh1 = (h - pad * 2) * (v1 / (opts.dualAxis ? maxBase : max));
-        const bh2 = (h - pad * 2) * (v2 / (opts.dualAxis ? maxOver : max));
+        const denom = (maxStack != null)
+           ? maxStack
+           : (opts.dualAxis ? maxBase : max);
+
+        const denom2 = (maxStack != null)
+           ? maxStack
+           : (opts.dualAxis ? maxOver : max);
+
+        const bh1 = (h - pad * 2) * (v1 / denom);
+        const bh2 = (h - pad * 2) * (v2 / denom2);
+
 
         const mainW = pairW * barWidthRatio;
         const overW = mainW * overlayWidthRatio;
