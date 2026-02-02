@@ -1245,8 +1245,8 @@ const capDashParts_ = (s)=>{
       capFirst_("Распределение по полу"),
       genderCats,
       [
-        { name: capFirst_"Показы"), data: Object.fromEntries(genderCats.map(k=>[k, genderImpr[k]||0])) },
-        { name: capFirst_("Клики"),  data: Object.fromEntries(genderCats.map(k=>[k, genderClicks[k]||0])) }
+         { name: capFirst_("Показы"), data: Object.fromEntries(genderCats.map(k=>[k, genderImpr[k]||0])) },
+         { name: capFirst_("Клики"),  data: Object.fromEntries(genderCats.map(k=>[k, genderClicks[k]||0])) }
       ],
       {
         showXAxisLabels: false,
@@ -1394,10 +1394,10 @@ const capDashParts_ = (s)=>{
       capFirst_("Распределение по возрасту"),
       ageCats,
       [
-        { name: capFirst_("М • показы"), data: ageMenImpr },
-        { name: capFirst_"М • клики"),  data: ageMenClicks },
-        { name: capFirst_("Ж • показы"), data: ageWomenImpr },
-        { name: capFirst_("Ж • клики"),  data: ageWomenClicks }
+         { name: capFirst_("М • показы"), data: ageMenImpr },
+         { name: capFirst_("М • клики"),  data: ageMenClicks },
+         { name: capFirst_("Ж • показы"), data: ageWomenImpr },
+         { name: capFirst_("Ж • клики"),  data: ageWomenClicks }
       ],
       {
         overlayPairs: true,
