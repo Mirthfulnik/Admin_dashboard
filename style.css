@@ -414,15 +414,30 @@ body{
   .container{max-width:none; margin:0; padding:0}
   #page-report{display:block !important}
   #report-root{margin:0}
+
   .pageSheet{
-    width:auto; height:auto; margin:0; border:none; border-radius:0; box-shadow:none;
+    width: 1123px !important;   /* A4 landscape @96dpi */
+    height: 794px !important;   /* A4 landscape @96dpi */
+    margin: 0 !important;
+
+    border:none;
+    border-radius:0;
+    box-shadow:none;
+
     page-break-after: always;
+
     background: rgb(176,176,176) !important;
     color: rgb(0,0,0) !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  .sheetInner{
+    height: 100% !important;    /* теперь 100% имеет смысл */
+    background: transparent !important; /* или rgb(176,176,176) — см. ниже */
+  }
 }
+
 
 /* ===== Report sheets: SVG text should be dark on white pages ===== */
 .sheet .svgChart text { fill: rgba(0,0,0,.75) !important; }
