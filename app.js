@@ -1234,10 +1234,11 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
         { name: capWords_("Клики"),  data: Object.fromEntries(genderCats.map(k=>[k, genderClicks[k]||0])) }
       ],
       {
-        overlayPairs: false,
+        overlayPairs: true,
         pairSize: 2,
         showValues: false,
         showLegend: false,
+        showXAxisLabels: false,
         stretch: true,
         xLabelFontSize: 18,
          wrapXLabels: true,
