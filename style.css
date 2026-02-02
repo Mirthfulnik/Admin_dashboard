@@ -436,6 +436,11 @@ body{
     height: 100% !important;    /* теперь 100% имеет смысл */
     background: transparent !important; /* или rgb(176,176,176) — см. ниже */
   }
+
+  .creativesNote,
+  .tableNote{
+    display:none !important;
+  }
 }
 
 
