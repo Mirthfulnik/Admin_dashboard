@@ -90,7 +90,8 @@ function ensureDemoStorage_(c){
       c.demoFiles.push({
         id: "demo_" + Math.random().toString(16).slice(2,10),
         name: "demo.xlsx",
-        rows: c.demoRows
+        rows: c.demoRows,
+        totals: null
       });
     }
     c.demoRows = null;
@@ -108,6 +109,23 @@ function getDemoRows_(c){
     if (f && Array.isArray(f.rows) && f.rows.length) out.push(...f.rows);
   }
   return out;
+}
+
+function getDemoTotals_(c){
+  // Sums totals (Итого) across all uploaded demography files.
+  ensureDemoStorage_(c);
+  const files = Array.isArray(c.demoFiles) ? c.demoFiles : [];
+  let impr = 0, clicks = 0, has = false;
+  for (const f of files){
+    const t = f && f.totals;
+    if (!t) continue;
+    const ti = Number(t.impr || 0);
+    const tc = Number(t.clicks || 0);
+    if (ti || tc) has = true;
+    impr += ti;
+    clicks += tc;
+  }
+  return has ? { impr, clicks } : null;
 }
 
 
@@ -571,11 +589,12 @@ function getDemoRows_(c){
       if (!files.length) return;
       ensureDemoStorage_(c);
       for (const f of files){
-        const rows = await parseDemoXlsx_(f);
+        const parsed = await parseDemoXlsx_(f);
         c.demoFiles.push({
           id: "demo_" + Math.random().toString(16).slice(2,10),
           name: f.name,
-          rows
+          rows: parsed.rows,
+          totals: parsed.totals
         });
       }
       renderCommunityPreviews_(card, c);
@@ -1023,7 +1042,19 @@ if (demoRows.length){
     }
     const avgCost = safeDiv_(spent, adds);
     return { spent, shows, listens, adds, segments: groupIds.size, avgCost };
+  
+  function calcImprClicksFromAdsRows_(rows){
+    let impr = 0, clicks = 0;
+    for (const row0 of (rows || [])){
+      const row = normalizeRowKeys_(row0 || {});
+      impr += num_(row["Показы"]);
+      // Different exports may name clicks differently; keep a few variants.
+      clicks += num_(row["Клики"] ?? row["Переходы"] ?? row["Переходы по ссылке"] ?? row["Клики по ссылке"] ?? 0);
+    }
+    return { impr, clicks };
   }
+
+}
 
   function renderResultsPage_(r, commItems, isMultiSummary, addLabel=false){
     // if isMultiSummary: show "Общие показатели" + mini list? In MVP: first KPI = totals across all communities
@@ -1297,6 +1328,38 @@ function renderDetailPageChunk_(r, c, start, perPage, pagesTotal){
       click: "rgb(132,204,22)"    // green
     };
 
+
+    // --- Totals methodology (to match "Результаты продвижения") ---
+    // M / Ж берём по строкам, а "Всего" стараемся брать из выгрузки "Объявления" (как на слайде результатов),
+    // иначе — из строки "Итого" демографии. Остаток интерпретируем как "Пол не указан".
+    const menI_raw = genderImpr["Мужчины"]||0;
+    const womI_raw = genderImpr["Женщины"]||0;
+    const menC_raw = genderClicks["Мужчины"]||0;
+    const womC_raw = genderClicks["Женщины"]||0;
+
+    const adsTot = (Array.isArray(c.adsRows) && c.adsRows.length) ? calcImprClicksFromAdsRows_(c.adsRows) : null;
+    const demoTot = getDemoTotals_(c); // сумма "Итого" по всем демо-файлам
+
+    let totalImpr = (adsTot && adsTot.impr) ? adsTot.impr : (demoTot && demoTot.impr) ? demoTot.impr : (menI_raw + womI_raw);
+    let totalClicks = (adsTot && adsTot.clicks) ? adsTot.clicks : (demoTot && demoTot.clicks) ? demoTot.clicks : (menC_raw + womC_raw);
+
+    const sexSumImpr = menI_raw + womI_raw;
+    const sexSumClicks = menC_raw + womC_raw;
+
+    // Если общий итог меньше М+Ж — не добавляем "Пол не указан" и считаем "Всего" = М+Ж.
+    if (totalImpr < sexSumImpr) totalImpr = sexSumImpr;
+    if (totalClicks < sexSumClicks) totalClicks = sexSumClicks;
+
+    const noneI = Math.max(0, totalImpr - sexSumImpr);
+    const noneC = Math.max(0, totalClicks - sexSumClicks);
+
+    // Принудительно подставляем рассчитанные значения "Пол не указан" (важно для диаграммы пола и процентов)
+    genderImpr["Пол не указан"] = noneI;
+    genderClicks["Пол не указан"] = noneC;
+
+    // Эффективные значения для таблицы
+    const menI = menI_raw, womI = womI_raw;
+    const menC = menC_raw, womC = womC_raw;
      const capFirst_ = (s)=>{
   const str = String(s || "");
   if (!str) return str;
@@ -1389,10 +1452,7 @@ const capDashParts_ = (s)=>{
     // 3) Table card (М / Ж / Всего)
     const tableCard = card("demoTableCard");
 
-    const sumImpr = genderCats.reduce((s,k)=>s + (genderImpr[k]||0), 0);
-    const sumClicks = genderCats.reduce((s,k)=>s + (genderClicks[k]||0), 0);
-
-    const valPct = (v, total)=>{
+        const valPct = (v, total)=>{
       if (!total) return `${formatInt_(v)} (0%)`;
       const p = Math.round((v/total)*100);
       return `${formatInt_(v)} (${p}%)`;
@@ -1404,13 +1464,9 @@ const capDashParts_ = (s)=>{
       return `${formatMoney2_(v)}`;
     };
 
-    const menI = genderImpr["Мужчины"]||0, womI = genderImpr["Женщины"]||0, noneI = genderImpr["Пол не указан"]||0;
-    const menC = genderClicks["Мужчины"]||0, womC = genderClicks["Женщины"]||0, noneC = genderClicks["Пол не указан"]||0;
-
     const menSpent = genderSpent["Мужчины"]||0;
     const womSpent = genderSpent["Женщины"]||0;
     const noneSpent = genderSpent["Пол не указан"]||0;
-
     tableCard.innerHTML = `
       <table class="demoMiniTable">
         <thead>
@@ -1424,21 +1480,21 @@ const capDashParts_ = (s)=>{
         <tbody>
           <tr>
             <td>Показы</td>
-            <td>${escapeHtml_(valPct(menI, sumImpr))}</td>
-            <td>${escapeHtml_(valPct(womI, sumImpr))}</td>
-            <td>${escapeHtml_(valPct(sumImpr, sumImpr))}</td>
+            <td>${escapeHtml_(valPct(menI, totalImpr))}</td>
+            <td>${escapeHtml_(valPct(womI, totalImpr))}</td>
+            <td>${escapeHtml_(valPct(totalImpr, totalImpr))}</td>
           </tr>
           <tr>
             <td>Клики</td>
-            <td>${escapeHtml_(valPct(menC, sumClicks))}</td>
-            <td>${escapeHtml_(valPct(womC, sumClicks))}</td>
-            <td>${escapeHtml_(valPct(sumClicks, sumClicks))}</td>
+            <td>${escapeHtml_(valPct(menC, totalClicks))}</td>
+            <td>${escapeHtml_(valPct(womC, totalClicks))}</td>
+            <td>${escapeHtml_(valPct(totalClicks, totalClicks))}</td>
           </tr>
           <tr>
             <td>Цена за<br/>результат, ₽</td>
             <td>${escapeHtml_(cost(menSpent, menC))}</td>
             <td>${escapeHtml_(cost(womSpent, womC))}</td>
-            <td>${escapeHtml_(cost(menSpent+womSpent+noneSpent, sumClicks))}</td>
+            <td>${escapeHtml_(cost(menSpent+womSpent+noneSpent, totalClicks))}</td>
           </tr>
         </tbody>
       </table>
@@ -1687,20 +1743,40 @@ async function readXlsx_(file){
 
   if (!json.length) throw new Error("empty demo");
 
-  // Keep only rows having Age+Gender
+  // 1) Extract totals from the "Итого" row (needed to match "Результаты продвижения")
+  let totals = null;
+  for (const row0 of json){
+    const row = normalizeRowKeys_(row0 || {});
+    const age = String(row["Возраст"] ?? row["Age"] ?? "").trim().toLowerCase();
+    const gender = String(row["Пол"] ?? row["Gender"] ?? "").trim().toLowerCase();
+    if (age.includes("итого") || gender.includes("итого")){
+      totals = {
+        impr: num_(row["Показы"]),
+        clicks: num_(row["Клики"])
+      };
+      break;
+    }
+  }
+
+  // 2) Keep only rows having Age+Gender (normal buckets)
   const out = [];
-  for (const row of json){
+  for (const row0 of json){
+    const row = normalizeRowKeys_(row0 || {});
     const age = row["Возраст"] ?? row["Age"] ?? "";
     const gender = row["Пол"] ?? row["Gender"] ?? "";
+    const aLow = String(age||"").trim().toLowerCase();
+    const gLow = String(gender||"").trim().toLowerCase();
+    // skip totals row
+    if (aLow.includes("итого") || gLow.includes("итого")) continue;
     if (!age || !gender) continue;
     out.push(row);
   }
-  return out.length ? out : json; // fallback
+
+  return { rows: (out.length ? out : json), totals };
 }
 
-
   /** -----------------------------
-   *  Demo aggregation (MVP)
+   *  Demo aggregation (MVP) (MVP)
    * -----------------------------*/
   function normalizeGender_(g){
     const s = String(g||"").trim();
