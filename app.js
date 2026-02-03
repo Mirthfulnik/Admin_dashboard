@@ -236,8 +236,11 @@ function getDemoTotals_(c){
         syncSelectors_();
         go_("report");
       });
+       list.appendChild(item);
     }
   }
+
+
 
   /** -----------------------------
    *  Editor
