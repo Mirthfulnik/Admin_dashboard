@@ -821,3 +821,25 @@ body{
 .loginInput::placeholder{
   color: rgba(238,242,255,.55);
 }
+
+.loginPassWrap{
+  position: relative;
+}
+
+.loginEye{
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  color: #eef2ff;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: .7;
+}
+
+.loginEye:hover{
+  opacity: 1;
+}
+
