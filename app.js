@@ -223,7 +223,6 @@ function getDemoTotals_(c){
           <div class="itemActions">
             <button class="btn inline" data-act="open">Открыть</button>
             <button class="btn inline" data-act="build">Сформировать отчёт</button>
-            <button class="btn inline danger" data-act="delete">Удалить…</button>
           </div>
         </div>
       `;
@@ -237,10 +236,6 @@ function getDemoTotals_(c){
         syncSelectors_();
         go_("report");
       });
-      item.querySelector('[data-act="delete"]').addEventListener("click", ()=>{
-        openDeleteModal_(r.releaseId);
-      });
-      list.appendChild(item);
     }
   }
 
