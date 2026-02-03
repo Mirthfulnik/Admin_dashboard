@@ -24,3 +24,14 @@ document.getElementById("loginBtn").onclick = async () => {
     document.getElementById("loginError").style.display = "block";
   }
 };
+
+const eyeBtn = document.getElementById("togglePass");
+const passInput = document.getElementById("loginPass");
+
+if (eyeBtn && passInput) {
+  eyeBtn.onclick = () => {
+    const isHidden = passInput.type === "password";
+    passInput.type = isHidden ? "text" : "password";
+    eyeBtn.textContent = isHidden ? "🙈" : "👁";
+  };
+}
