@@ -813,3 +813,13 @@ body{
   background: rgba(255,255,255,.04);
   c
 
+  /* Login inputs: white text */
+.loginInput{
+  color: #eef2ff;
+  caret-color: #eef2ff;           /* цвет курсора */
+}
+
+.loginInput::placeholder{
+  color: rgba(238,242,255,.55);
+}
+
