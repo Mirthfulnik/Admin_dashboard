@@ -237,6 +237,42 @@
     r.streams = Array.isArray(snap.streams) ? snap.streams : null;
     r.communities = Array.isArray(snap.communities) ? snap.communities : [];
 
+    // Backward compatibility: older snapshots could store compact keys (impr/clicks/etc).
+    for (const c of (r.communities || [])){
+      if (Array.isArray(c.adsRows)){
+        c.adsRows = c.adsRows.map(row0 => {
+          const row = row0 || {};
+          if (row && (row.impr != null || row.clicks != null || row.spent != null || row.adds != null)){
+            // upgrade compact shape -> expected VK export headers
+            if (row.impr != null && row["Показы"] == null) row["Показы"] = row.impr;
+            if (row.clicks != null && row["Клики"] == null) row["Клики"] = row.clicks;
+            if (row.spent != null && row["Потрачено всего, ₽"] == null) row["Потрачено всего, ₽"] = row.spent;
+            if (row.adds != null && row["Добавления"] == null) row["Добавления"] = row.adds;
+            if (row.listens != null && row["Прослушивания"] == null) row["Прослушивания"] = row.listens;
+            if (row.groupId != null && row["ID группы"] == null) row["ID группы"] = row.groupId;
+            if (row.name != null && row["Название объявления"] == null) row["Название объявления"] = row.name;
+          }
+          return normalizeRowKeys_(row);
+        });
+      }
+      if (Array.isArray(c.demoFiles)){
+        for (const df of c.demoFiles){
+          if (!df || !Array.isArray(df.rows)) continue;
+          df.rows = df.rows.map(row0 => {
+            const row = row0 || {};
+            if (row && (row.impr != null || row.clicks != null || row.age != null || row.sex != null)){
+              if (row.impr != null && row["Показы"] == null) row["Показы"] = row.impr;
+              if (row.clicks != null && row["Клики"] == null) row["Клики"] = row.clicks;
+              if (row.age != null && row["Возраст"] == null) row["Возраст"] = row.age;
+              if (row.sex != null && row["Пол"] == null) row["Пол"] = row.sex;
+            }
+            return normalizeRowKeys_(row);
+          });
+        }
+      }
+    }
+
+
     // hydrate image urls
     if (r.coverKey) r.coverDataUrl = await cloudObjectUrl_(r.coverKey);
     for (const c of (r.communities || [])){
@@ -293,25 +329,12 @@
         name: c.name,
         vkId: c.vkId,
         // keep full table, but only columns used by report
-        adsRows: (c.adsRows || []).map(a => ({
-          name: a.name ?? a.adName ?? a["Название объявления"] ?? "",
-          spent: Number(a.spent ?? a["Потрачено"] ?? 0),
-          impr: Number(a.impr ?? a["Показы"] ?? 0),
-          clicks: Number(a.clicks ?? a["Клики"] ?? 0),
-          listens: Number(a.listens ?? a["Прослушивания"] ?? 0),
-          adds: Number(a.adds ?? a["Добавления"] ?? a["Добавили аудио"] ?? 0),
-          groupId: a.groupId ?? a["ID группы"] ?? ""
-        })),
+        adsRows: (c.adsRows || []).map(row0 => normalizeRowKeys_(row0 || {})),
         demoFiles: (c.demoFiles || []).map(df => ({
           id: df.id,
           name: df.name,
           totals: df.totals || null,
-          rows: (df.rows || []).map(rr => ({
-            age: rr.age ?? rr["Возраст"] ?? "",
-            sex: rr.sex ?? rr["Пол"] ?? "",
-            impr: Number(rr.impr ?? rr["Показы"] ?? 0),
-            clicks: Number(rr.clicks ?? rr["Клики"] ?? 0)
-          }))
+          rows: (df.rows || []).map(row0 => normalizeRowKeys_(row0 || {}))
         })),
         creatives: (c.creatives || []).map(cr => ({
           id: cr.id,
