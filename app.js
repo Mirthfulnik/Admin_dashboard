@@ -599,7 +599,6 @@ function getDemoTotals_(c){
               <div class="miniTableTitle">Превью (первые 5 строк)</div>
               <table class="miniTable" data-prev="ads"></table>
             </div>
-            <div class="hint">Берём лист «Объявления» (если есть), иначе первый лист. Нужные колонки: Потрачено всего, ₽ / Показы / Начали прослушивание / Добавили аудио / ID группы.</div>
           </div>
 
           <div class="card" style="margin:0">
@@ -623,7 +622,6 @@ function getDemoTotals_(c){
               <div class="miniTableTitle">Превью (первые 5 строк)</div>
               <table class="miniTable" data-prev="demo"></table>
             </div>
-            <div class="hint">Ожидаем колонки: Возраст / Пол / Показы / Клики / Цена за результат, ₽ (и т.п.).</div>
           </div>
         </div>
 
@@ -635,7 +633,6 @@ function getDemoTotals_(c){
           <div class="row">
             <input type="file" accept="image/png,image/jpeg,image/webp" multiple data-up="creatives" />
           </div>
-          <div class="hint">MVP: просто загружаем изображения и показываем горизонтально в отчёте.</div>
           <div class="row" style="margin-top:10px; overflow:auto; padding-bottom:4px" data-creatives-row></div>
         </div>
       `;
