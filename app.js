@@ -22,30 +22,178 @@
     }
   };
 
-   async function cloudPresignPut_({ key, contentType }){
-  const res = await fetch(CLOUD_API + "/presign-put", {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ key, contentType })
-  });
-  if (!res.ok) throw new Error("presign-put failed");
-  return res.json(); // { url }
-}
+/** -----------------------------
+   *  Cloud (Yandex Object Storage via Cloud Function)
+   *  - single endpoint: POST {action:...}
+   * -----------------------------*/
+  async function cloudCall_(payload){
+    const res = await fetch(CLOUD_API, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload || {})
+    });
+    const txt = await res.text();
+    let data = {};
+    try { data = JSON.parse(txt || "{}"); } catch(e){}
+    if (!res.ok || data.ok === false){
+      const msg = (data && (data.error || data.errorMessage)) ? (data.error || data.errorMessage) : `Cloud API error (${res.status})`;
+      throw new Error(msg);
+    }
+    return data;
+  }
 
-async function cloudPut_({ url, blob, contentType }){
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": contentType },
-    body: blob
-  });
-  if (!res.ok) throw new Error("upload failed");
-}
+  async function cloudPresignPut_({ key, contentType }){
+    const data = await cloudCall_({ action: "presignPut", key, contentType });
+    // keep backward-friendly shape: { url }
+    return { url: data.uploadUrl };
+  }
 
-async function cloudSaveJson_({ key, obj }){
-  const blob = new Blob([JSON.stringify(obj)], {type:"application/json"});
-  const { url } = await cloudPresignPut_({ key, contentType:"application/json" });
-  await cloudPut_({ url, blob, contentType:"application/json" });
-}
+  async function cloudPresignGet_({ key }){
+    const data = await cloudCall_({ action: "presignGet", key });
+    return { url: data.downloadUrl };
+  }
+
+  async function cloudPut_({ url, blob, contentType }){
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body: blob
+    });
+    if (!res.ok) throw new Error(`upload failed (${res.status})`);
+  }
+
+  async function cloudSaveJson_({ key, obj }){
+    const blob = new Blob([JSON.stringify(obj)], {type:"application/json"});
+    const { url } = await cloudPresignPut_({ key, contentType:"application/json" });
+    await cloudPut_({ url, blob, contentType:"application/json" });
+  }
+
+  // --- Image convert helpers (Blob/File -> WebP) ---
+  async function blobToWebpBlob_(blob, {maxSide=2000, quality=0.86} = {}){
+    const bmp = await createImageBitmap(blob);
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bmp, 0, 0, w, h);
+
+    const webp = await new Promise(res => canvas.toBlob(res, "image/webp", quality));
+    if (!webp) throw new Error("WEBP encode failed");
+    return { blob: webp, w, h };
+  }
+
+  function safeKeyPart_(s){
+    return String(s||"").trim().replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0,80) || "x";
+  }
+  function tsKey_(){
+    return new Date().toISOString().replace(/[:.]/g,"-");
+  }
+
+  // Build minimal snapshot for cloud (only fields needed to re-render/print)
+  function buildSnapshot_(r, versionPrefix){
+    const snap = {
+      schema: 1,
+      releaseId: r.releaseId,
+      title: r.title,
+      artists: r.artists,
+      track: r.track,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      versionPrefix,
+      coverKey: r.coverKey || null,
+      streams: Array.isArray(r.streams) ? r.streams : [],
+      communities: (r.communities || []).map(c => ({
+        communityId: c.communityId,
+        name: c.name,
+        vkId: c.vkId,
+        // keep full table, but only columns used by report
+        adsRows: (c.adsRows || []).map(a => ({
+          name: a.name ?? a.adName ?? a["Название объявления"] ?? "",
+          spent: Number(a.spent ?? a["Потрачено"] ?? 0),
+          impr: Number(a.impr ?? a["Показы"] ?? 0),
+          clicks: Number(a.clicks ?? a["Клики"] ?? 0),
+          listens: Number(a.listens ?? a["Прослушивания"] ?? 0),
+          adds: Number(a.adds ?? a["Добавления"] ?? a["Добавили аудио"] ?? 0),
+          groupId: a.groupId ?? a["ID группы"] ?? ""
+        })),
+        demoFiles: (c.demoFiles || []).map(df => ({
+          id: df.id,
+          name: df.name,
+          totals: df.totals || null,
+          rows: (df.rows || []).map(rr => ({
+            age: rr.age ?? rr["Возраст"] ?? "",
+            sex: rr.sex ?? rr["Пол"] ?? "",
+            impr: Number(rr.impr ?? rr["Показы"] ?? 0),
+            clicks: Number(rr.clicks ?? rr["Клики"] ?? 0)
+          }))
+        })),
+        creatives: (c.creatives || []).map(cr => ({
+          id: cr.id,
+          name: cr.name,
+          objectKey: cr.objectKey || null
+        }))
+      }))
+    };
+    return snap;
+  }
+
+  // Save current release version to Yandex Object Storage:
+  // - upload cover.webp (if present)
+  // - upload creatives/*.webp (if present)
+  // - upload data.json snapshot
+  async function cloudSaveCurrentReleaseVersion_(){
+    const r = getCurrentRelease_();
+    if (!r) throw new Error("Нет выбранного релиза");
+
+    const ts = tsKey_();
+    const prefix = `releases/${r.releaseId}/versions/${ts}/`;
+
+    // Cover (from dataUrl)
+    if (r.coverDataUrl && !r.coverKey){
+      const src = await (await fetch(r.coverDataUrl)).blob();
+      const { blob: webp } = await blobToWebpBlob_(src, { maxSide: 1400, quality: 0.86 });
+      const key = prefix + "cover.webp";
+      const { url } = await cloudPresignPut_({ key, contentType: "image/webp" });
+      await cloudPut_({ url, blob: webp, contentType: "image/webp" });
+      r.coverKey = key;
+      // reduce local DB size
+      // keep coverDataUrl for UI preview, but you may delete it if you want:
+      // delete r.coverDataUrl;
+    }
+
+    // Creatives (from dataUrl)
+    for (const c of (r.communities || [])){
+      for (const cr of (c.creatives || [])){
+        if (cr.objectKey) continue;
+        if (!cr.dataUrl) continue;
+        const src = await (await fetch(cr.dataUrl)).blob();
+        const { blob: webp } = await blobToWebpBlob_(src, { maxSide: 2000, quality: 0.86 });
+        const idPart = safeKeyPart_(cr.id || cr.name || "creative");
+        const key = prefix + `creatives/${idPart}.webp`;
+        const { url } = await cloudPresignPut_({ key, contentType: "image/webp" });
+        await cloudPut_({ url, blob: webp, contentType: "image/webp" });
+        cr.objectKey = key;
+        // optionally drop base64 to keep DB light
+        // delete cr.dataUrl;
+      }
+    }
+
+    // Snapshot
+    const snap = buildSnapshot_(r, prefix);
+    const dataKey = prefix + "data.json";
+    const { url } = await cloudPresignPut_({ key: dataKey, contentType: "application/json" });
+    await cloudPut_({ url, blob: JSON.stringify(snap), contentType: "application/json" });
+
+    r.cloudVersions = Array.isArray(r.cloudVersions) ? r.cloudVersions : [];
+    r.cloudVersions.unshift({ ts, dataKey });
+    r.lastCloudVersion = ts;
+    saveDB_();
+
+    return { ts, dataKey };
+  }
 
   function loadDB_(){
     try{
@@ -1021,6 +1169,35 @@ if (demoRows.length){
   };
 });
 
+
+
+
+// Cloud save button (рядом с "Печать / PDF")
+const _btnCloudSave = $("#btn-cloud-save");
+if (_btnCloudSave){
+  _btnCloudSave.addEventListener("click", async ()=>{
+    try{
+      const r = getCurrentRelease_();
+      if (!r) { alert("Нет выбранного релиза"); return; }
+      if (!isReleaseReady_(r)) { alert("Отчёт не готов. Сначала догрузи данные в «Конструкторе»."); return; }
+
+      setLocked_(_btnCloudSave, true);
+      const originalText = _btnCloudSave.textContent;
+      _btnCloudSave.textContent = "Сохранение…";
+
+      const { ts } = await cloudSaveCurrentReleaseVersion_();
+
+      _btnCloudSave.textContent = originalText || "Сохранить";
+      alert("Сохранено в облако. Версия: " + ts);
+    }catch(e){
+      console.error(e);
+      _btnCloudSave.textContent = "Сохранить";
+      alert("Не удалось сохранить в облако: " + (e && e.message ? e.message : e));
+    }finally{
+      setLocked_(_btnCloudSave, false);
+    }
+  });
+}
 
   function renderReport_(){
     syncSelectors_();
