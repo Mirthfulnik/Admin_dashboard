@@ -68,6 +68,189 @@
     await cloudPut_({ url, blob, contentType:"application/json" });
   }
 
+  // ===== Cloud index (to show releases/versions in any browser) =====
+  const CLOUD_INDEX_KEY = "index/releases.json";
+  const CLOUD_RELEASE_INDEX_PREFIX = "index/releases/"; // + {releaseId}.json
+
+  const _cloudUrlCache = new Map(); // key -> presigned downloadUrl
+
+  async function cloudObjectUrl_(key){
+    if (!key) return "";
+    if (_cloudUrlCache.has(key)) return _cloudUrlCache.get(key);
+    const { url } = await cloudPresignGet_({ key });
+    _cloudUrlCache.set(key, url);
+    return url;
+  }
+
+  async function fetchJsonOrNull_(url){
+    const res = await fetch(url, { cache: "no-store" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GET failed (${res.status})`);
+    const txt = await res.text();
+    try { return JSON.parse(txt || "{}"); } catch(e){ return null; }
+  }
+
+  async function cloudReadJsonKeyOrNull_(key){
+    try{
+      const { url } = await cloudPresignGet_({ key });
+      return await fetchJsonOrNull_(url);
+    }catch(e){
+      // if file doesn't exist yet, treat as empty
+      return null;
+    }
+  }
+
+  async function cloudWriteJsonKey_(key, obj){
+    await cloudSaveJson_({ key, obj });
+  }
+
+  function cloudMakeLocalStubFromIndex_(meta){
+    return {
+      releaseId: meta.releaseId,
+      artists: meta.artists || "",
+      track: meta.track || "",
+      title: meta.title || releaseTitle_(meta.artists||"", meta.track||""),
+      createdAt: meta.createdAt || meta.updatedAt || nowIso_(),
+      updatedAt: meta.updatedAt || nowIso_(),
+      coverDataUrl: null,
+      coverKey: meta.coverKey || null,
+      streams: null,
+      communities: [],
+      cloudOnly: true,
+      lastCloudVersion: meta.lastTs || null,
+      cloudVersions: meta.lastTs && meta.lastDataKey ? [{ ts: meta.lastTs, dataKey: meta.lastDataKey }] : []
+    };
+  }
+
+  async function cloudSyncFromIndex_(){
+    const idx = await cloudReadJsonKeyOrNull_(CLOUD_INDEX_KEY);
+    const releases = Array.isArray(idx && idx.releases) ? idx.releases : [];
+    let changed = false;
+
+    for (const meta of releases){
+      if (!meta || !meta.releaseId) continue;
+      if (!state.db.releases[meta.releaseId]){
+        state.db.releases[meta.releaseId] = cloudMakeLocalStubFromIndex_(meta);
+        changed = true;
+      }else{
+        // update basic meta if cloud has newer
+        const local = state.db.releases[meta.releaseId];
+        if ((meta.updatedAt||"") > (local.updatedAt||"")){
+          local.artists = meta.artists || local.artists;
+          local.track = meta.track || local.track;
+          local.title = meta.title || local.title;
+          local.updatedAt = meta.updatedAt || local.updatedAt;
+          local.coverKey = meta.coverKey || local.coverKey;
+          local.lastCloudVersion = meta.lastTs || local.lastCloudVersion;
+          if (meta.lastTs && meta.lastDataKey){
+            local.cloudVersions = Array.isArray(local.cloudVersions) ? local.cloudVersions : [];
+            // ensure latest at front
+            const exists = local.cloudVersions.find(v=>v.ts===meta.lastTs);
+            if (!exists) local.cloudVersions.unshift({ ts: meta.lastTs, dataKey: meta.lastDataKey });
+          }
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) saveDB_();
+    syncSelectors_();
+    renderReleases_();
+    renderHistory_();
+    // report/editor will be rendered on navigation
+  }
+
+  async function cloudUpsertIndexOnSave_(release, { ts, dataKey, prefix }){
+    const now = nowIso_();
+
+    // 1) Global index
+    const idx = await cloudReadJsonKeyOrNull_(CLOUD_INDEX_KEY) || { schema: 1, updatedAt: now, releases: [] };
+    idx.schema = idx.schema || 1;
+    idx.updatedAt = now;
+    idx.releases = Array.isArray(idx.releases) ? idx.releases : [];
+
+    const meta = {
+      releaseId: release.releaseId,
+      title: release.title,
+      artists: release.artists,
+      track: release.track,
+      createdAt: release.createdAt || now,
+      updatedAt: release.updatedAt || now,
+      coverKey: release.coverKey || null,
+      lastTs: ts,
+      lastDataKey: dataKey
+    };
+
+    const i = idx.releases.findIndex(x => x.releaseId === release.releaseId);
+    if (i >= 0) idx.releases[i] = meta; else idx.releases.push(meta);
+
+    // keep newest first
+    idx.releases.sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+
+    await cloudWriteJsonKey_(CLOUD_INDEX_KEY, idx);
+
+    // 2) Per-release versions file
+    const relIndexKey = CLOUD_RELEASE_INDEX_PREFIX + release.releaseId + ".json";
+    const relIdx = await cloudReadJsonKeyOrNull_(relIndexKey) || { schema: 1, releaseId: release.releaseId, title: release.title, versions: [] };
+    relIdx.schema = relIdx.schema || 1;
+    relIdx.title = release.title;
+    relIdx.versions = Array.isArray(relIdx.versions) ? relIdx.versions : [];
+    // add new version at front
+    relIdx.versions = relIdx.versions.filter(v => v && v.ts !== ts);
+    relIdx.versions.unshift({ ts, dataKey, prefix, createdAt: now });
+    await cloudWriteJsonKey_(relIndexKey, relIdx);
+  }
+
+  async function ensureReleaseHydrated_(releaseId){
+    const r = state.db.releases[releaseId];
+    if (!r) return null;
+
+    // already hydrated or fully local
+    if (r._cloudHydrated || (!r.cloudOnly && (r.communities && r.communities.length || r.streams))) {
+      // still ensure image urls exist when only keys are present
+      if (r.coverKey && !r.coverDataUrl) r.coverDataUrl = await cloudObjectUrl_(r.coverKey);
+      for (const c of (r.communities || [])){
+        for (const cr of (c.creatives || [])){
+          if (cr.objectKey && !cr.dataUrl) cr.dataUrl = await cloudObjectUrl_(cr.objectKey);
+        }
+      }
+      return r;
+    }
+
+    const dataKey = (Array.isArray(r.cloudVersions) && r.cloudVersions[0] && r.cloudVersions[0].dataKey)
+      ? r.cloudVersions[0].dataKey
+      : null;
+
+    if (!dataKey) return r; // nothing to hydrate from
+
+    const { url } = await cloudPresignGet_({ key: dataKey });
+    const snap = await fetchJsonOrNull_(url);
+    if (!snap) throw new Error("Не удалось загрузить snapshot из облака");
+
+    // Apply snapshot
+    r.title = snap.title || r.title;
+    r.artists = snap.artists || r.artists;
+    r.track = snap.track || r.track;
+    r.createdAt = snap.createdAt || r.createdAt;
+    r.updatedAt = snap.updatedAt || r.updatedAt;
+    r.coverKey = snap.coverKey || r.coverKey || null;
+    r.streams = Array.isArray(snap.streams) ? snap.streams : null;
+    r.communities = Array.isArray(snap.communities) ? snap.communities : [];
+
+    // hydrate image urls
+    if (r.coverKey) r.coverDataUrl = await cloudObjectUrl_(r.coverKey);
+    for (const c of (r.communities || [])){
+      for (const cr of (c.creatives || [])){
+        if (cr.objectKey) cr.dataUrl = await cloudObjectUrl_(cr.objectKey);
+      }
+    }
+
+    r.cloudOnly = false;
+    r._cloudHydrated = true;
+    saveDB_();
+    return r;
+  }
+
   // --- Image convert helpers (Blob/File -> WebP) ---
   async function blobToWebpBlob_(blob, {maxSide=2000, quality=0.86} = {}){
     const bmp = await createImageBitmap(blob);
@@ -191,6 +374,9 @@
     r.cloudVersions.unshift({ ts, dataKey });
     r.lastCloudVersion = ts;
     saveDB_();
+
+    // Update global cloud index so releases are visible in other browsers
+    await cloudUpsertIndexOnSave_(r, { ts, dataKey, prefix });
 
     return { ts, dataKey };
   }
@@ -339,6 +525,26 @@ function getDemoTotals_(c){
     newReleaseCard.hidden = true;
   });
 
+  const btnCloudRefresh = $("#btn-cloud-refresh");
+  if (btnCloudRefresh){
+    btnCloudRefresh.addEventListener("click", async ()=>{
+      try{
+        setLocked_(btnCloudRefresh, true);
+        const t0 = btnCloudRefresh.textContent;
+        btnCloudRefresh.textContent = "Обновление…";
+        await cloudSyncFromIndex_();
+        btnCloudRefresh.textContent = t0 || "Обновить из облака";
+      }catch(e){
+        console.error(e);
+        alert("Не удалось обновить из облака: " + (e && e.message ? e.message : e));
+        btnCloudRefresh.textContent = "Обновить из облака";
+      }finally{
+        setLocked_(btnCloudRefresh, false);
+      }
+    });
+  }
+
+
   function updateNewReleasePreview_(){
     const title = releaseTitle_($("#nr-artists").value, $("#nr-track").value);
     $("#nr-title-preview").textContent = title;
@@ -453,14 +659,16 @@ function getDemoTotals_(c){
           </div>
         </div>
       `;
-      item.querySelector('[data-act="open"]').addEventListener("click", ()=>{
+      item.querySelector('[data-act="open"]').addEventListener("click", async ()=>{
         state.currentReleaseId = r.releaseId;
         syncSelectors_();
+        try{ await ensureReleaseHydrated_(r.releaseId); }catch(e){ console.error(e); }
         go_("editor");
       });
-      item.querySelector('[data-act="build"]').addEventListener("click", ()=>{
+      item.querySelector('[data-act="build"]').addEventListener("click", async ()=>{
         state.currentReleaseId = r.releaseId;
         syncSelectors_();
+        try{ await ensureReleaseHydrated_(r.releaseId); }catch(e){ console.error(e); }
         go_("report");
       });
        list.appendChild(item);
@@ -502,12 +710,18 @@ function getDemoTotals_(c){
     makeOptions(reportSelect);
   }
 
-  editorSelect.addEventListener("change", ()=>{
+  editorSelect.addEventListener("change", async ()=>{
     state.currentReleaseId = editorSelect.value || null;
+    if (state.currentReleaseId) {
+      try{ await ensureReleaseHydrated_(state.currentReleaseId); }catch(e){ console.error(e); }
+    }
     renderEditor_();
   });
-  reportSelect.addEventListener("change", ()=>{
+  reportSelect.addEventListener("change", async ()=>{
     state.currentReleaseId = reportSelect.value || null;
+    if (state.currentReleaseId) {
+      try{ await ensureReleaseHydrated_(state.currentReleaseId); }catch(e){ console.error(e); }
+    }
     renderReport_();
   });
 
@@ -784,7 +998,6 @@ function getDemoTotals_(c){
           <div class="row" style="margin-top:10px; overflow:auto; padding-bottom:4px" data-creatives-row></div>
         </div>
       `;
-
       // delete community
       card.querySelector('[data-act="del"]').addEventListener("click", ()=>{
         if (!confirm("Удалить сообщество и все его данные?")) return;
@@ -1110,9 +1323,10 @@ if (demoRows.length){
           </div>
         </div>
       `;
-      item.querySelector('[data-act="open"]').addEventListener("click", ()=>{
+      item.querySelector('[data-act="open"]').addEventListener("click", async ()=>{
         state.currentReleaseId = r.releaseId;
         syncSelectors_();
+        try{ await ensureReleaseHydrated_(r.releaseId); }catch(e){ console.error(e); }
         go_("editor");
       });
       item.querySelector('[data-act="report"]').addEventListener("click", ()=>{
@@ -2685,6 +2899,11 @@ svg.appendChild(svgEl);
   /** -----------------------------
    *  Boot
    * -----------------------------*/
+  // 1) show local releases immediately
   syncSelectors_();
   go_("releases");
+
+  // 2) then pull cloud index (so releases appear in any browser)
+  //    (errors are non-fatal; UI will still work with local storage)
+  cloudSyncFromIndex_().catch(e=>console.warn("cloudSyncFromIndex failed:", e));
 })();
