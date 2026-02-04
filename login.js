@@ -2,7 +2,7 @@
 if (localStorage.getItem("lotus_auth") === "1") {
   const ov = document.getElementById("loginOverlay");
   if (ov) ov.style.display = "none";
-}
+} 
 
 const LOGIN_API = "https://functions.yandexcloud.net/d4eb50fp0hlkhk068v1e";
 
