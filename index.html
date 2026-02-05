@@ -349,12 +349,21 @@
   (function(){
     function isMobileDevice(){
       var ua = navigator.userAgent || "";
-      var uaDataMobile = (navigator.userAgentData && navigator.userAgentData.mobile) ? true : false;
-      var uaMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua);
-      var touch = (navigator.maxTouchPoints || 0) > 0;
-      var small = (window.matchMedia && window.matchMedia("(max-width: 1024px)").matches) ? true : false;
-      // Prefer explicit mobile/tablet UA; fallback to touch+small to avoid narrow desktop windows.
-      return !!(uaDataMobile || uaMobile || (touch && small));
+      var uaDataMobile = !!(navigator.userAgentData && navigator.userAgentData.mobile);
+
+      // UA heuristics (keep fairly strict; iPadOS may include "Macintosh" but also "Mobile")
+      var uaMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || /Mobile/i.test(ua);
+
+      // Responsive + input modality
+      var small = !!(window.matchMedia && window.matchMedia("(max-width: 1024px)").matches);
+      var coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+
+      // Desktop guard: wide desktop UA must not flip into mobile unless UA clearly says Mobile
+      var desktopUa = /Windows NT|Macintosh|X11|Linux x86_64/i.test(ua);
+      if (desktopUa && !small && !uaDataMobile && !uaMobile) return false;
+
+      // Mobile/tablet if UA says so OR (small screen + coarse pointer)
+      return !!(uaDataMobile || uaMobile || (small && coarse));
     }
     var isMobile = isMobileDevice();
     // Expose to app to enable burger + report scaling.
