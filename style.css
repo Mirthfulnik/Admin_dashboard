@@ -151,13 +151,12 @@ body{
 @media (min-width: 981px){
   .filtersGrid{
     grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
-    margin-bottom: 14px; /* <-- вернуть воздух до списка */
+    margin-bottom: 14px;
   }
-}
 
-  /* Переносим кнопку "Очистить" в одну строку с фильтрами */
+  /* Кнопка "Очистить": вернуть воздух до списка */
   .filtersBottomRow{
-    margin: 0;
+    margin: 0 0 16px;   /* <-- ВОТ он, воздух между кнопкой и списком */
     display: flex;
     align-items: end;
   }
