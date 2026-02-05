@@ -816,7 +816,46 @@ function getDemoTotals_(c){
   /** -----------------------------
    *  Init nav
    * -----------------------------*/
-  $$(".tabBtn").forEach(b=>b.addEventListener("click", ()=>go_(b.dataset.route)));
+  $$$(".tabBtn").forEach(b=>b.addEventListener("click", ()=>go_(b.dataset.route)));
+
+/** Mobile burger navigation */
+(function initMobileNav_(){
+  const burger = $("#btn-burger");
+  const drawer = $("#mobileNav");
+  if (!burger || !drawer) return;
+
+  function open_(){
+    drawer.hidden = false;
+    burger.setAttribute("aria-expanded", "true");
+  }
+  function close_(){
+    drawer.hidden = true;
+    burger.setAttribute("aria-expanded", "false");
+  }
+  function toggle_(){
+    if (drawer.hidden) open_(); else close_();
+  }
+
+  burger.addEventListener("click", (e)=>{ e.preventDefault(); toggle_(); });
+
+  // Close on outside tap/click
+  document.addEventListener("pointerdown", (e)=>{
+    if (drawer.hidden) return;
+    if (burger.contains(e.target)) return;
+    if (drawer.contains(e.target)) return;
+    close_();
+  });
+
+  // Close when choosing a route from drawer
+  drawer.querySelectorAll(".tabBtn[data-route]").forEach(btn=>{
+    btn.addEventListener("click", ()=>close_());
+  });
+
+  // Safety: if switched to desktop width, ensure drawer is closed
+  window.addEventListener("resize", ()=>{
+    if (window.innerWidth > 980) close_();
+  });
+})();
 
   // Search inputs (Releases / History) — filter controls
   function bindFilters_(scope){
@@ -937,7 +976,9 @@ function getDemoTotals_(c){
     function open_(){
       render_(input.value);
       menu.hidden = false;
+      // On mobile, viewport changes when the keyboard opens; re-position on next frame.
       positionMenu_();
+      requestAnimationFrame(positionMenu_);
     }
     function close_(){
       menu.hidden = true;
@@ -962,8 +1003,15 @@ function getDemoTotals_(c){
         const div = document.createElement("div");
         div.className = "comboOpt";
         div.textContent = o.text || "—";
-        div.addEventListener("mousedown", (ev)=>{
+        div.addEventListener("pointerdown", (ev)=>{
           ev.preventDefault(); // не терять фокус до выбора
+          sel.value = o.value;
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+          syncInputFromSelect_();
+          close_();
+        });
+        div.addEventListener("click", (ev)=>{
+          ev.preventDefault();
           sel.value = o.value;
           sel.dispatchEvent(new Event("change", { bubbles: true }));
           syncInputFromSelect_();
@@ -995,7 +1043,7 @@ function getDemoTotals_(c){
     sel.addEventListener("change", syncInputFromSelect_);
 
     // Close on outside click (covers both wrap + menu in body)
-    document.addEventListener("mousedown", (e)=>{
+    document.addEventListener("pointerdown", (e)=>{
       if (wrap.contains(e.target)) return;
       if (menu.contains(e.target)) return;
       close_();
@@ -1967,8 +2015,48 @@ if (_btnCloudSave){
 
     const pages = buildReportPages_(r);
     for (const p of pages){
-      root.appendChild(p);
+      // Wrap each sheet to support 
+
+  /** Mobile report scaling (keeps .pageSheet geometry, scales via transform). */
+  function updateReportScale_(){
+    const root = $("#report-root");
+    if (!root) return;
+
+    // Only scale on small screens; keep desktop exact size.
+    const isMobile = window.matchMedia && window.matchMedia("(max-width: 980px)").matches;
+    if (!isMobile){
+      root.style.removeProperty("--sheetScale");
+      $$(".sheetViewport").forEach(vp=>vp.style.height = "");
+      return;
     }
+
+    // 1123x794 is the canonical sheet size in CSS.
+    const SHEET_W = 1123;
+    const SHEET_H = 794;
+
+    // Fit to width with small padding; avoid touching edges.
+    const vw = Math.max(320, document.documentElement.clientWidth || window.innerWidth || 360);
+    const padding = 24; // total horizontal padding (12px left + 12px right)
+    const scale = Math.max(0.20, Math.min(1, (vw - padding) / SHEET_W));
+
+    root.style.setProperty("--sheetScale", String(scale));
+
+    // Reserve vertical space because transform doesn't affect layout.
+    $$(".sheetViewport").forEach(vp=>{
+      vp.style.height = (SHEET_H * scale) + "px";
+    });
+  }
+
+  // Keep report scale aligned with viewport/orientation.
+  window.addEventListener("resize", ()=>{ updateReportScale_(); });
+  window.addEventListener("orientationchange", ()=>{ setTimeout(updateReportScale_, 50); });
+mobile scaling without changing page geometry.
+      const vp = document.createElement("div");
+      vp.className = "sheetViewport";
+      vp.appendChild(p);
+      root.appendChild(vp);
+    }
+    updateReportScale_();
   }
 
   function buildReportPages_(r){
