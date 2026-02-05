@@ -121,6 +121,8 @@ body{
   display:flex;
   justify-content:flex-end;
   align-items:end;
+  margin-top: 20px;     /* воздух сверху */
+  margin-bottom: 28px;  /* воздух снизу */
 }
 .filtersDateRow{
   display:flex;
