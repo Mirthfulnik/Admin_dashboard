@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LOTUS MUSIC · VK DIGITAL-ОТЧЁТ (MVP)</title>
   <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
-  <link rel="stylesheet" href="style.css" />
+  <link id="appStyle" rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="preload" as="image" href="assets/logo_black.png" />
 </head>
@@ -42,7 +42,23 @@
       <button class="tabBtn" data-route="history">История</button>
       <button class="tabBtn" data-route="report">Отчёт</button>
     </nav>
-  </header>
+  <button class="burgerBtn" id="burgerBtn" aria-label="Меню">☰</button>
+</header>
+
+<div class="drawer" id="drawer">
+  <div class="drawerBackdrop" id="drawerBackdrop"></div>
+  <div class="drawerPanel" role="dialog" aria-label="Меню">
+    <div class="drawerHead">
+      <div class="drawerTitle">LOTUS MUSIC</div>
+      <button class="drawerClose" id="drawerClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="drawerNav" id="drawerNav"></div>
+    <div class="hint" style="margin-top:auto">
+      На смартфонах и планшетах используется мобильная навигация.
+    </div>
+  </div>
+</div>
+
 
   <main class="container">
     <!-- RELEASES -->
@@ -329,7 +345,27 @@
     </section>
 
   </main>
-  <script src="login.js"></script>
-  <script src="app.js"></script>
+<script>
+  (function(){
+    var isMobile = window.matchMedia && window.matchMedia("(max-width: 1024px)").matches;
+    // Expose to app to enable burger + report scaling.
+    window.__LM_MOBILE__ = !!isMobile;
+
+    // swap stylesheet if needed
+    var link = document.getElementById("appStyle");
+    if (link && isMobile) link.href = "style.mobile.css";
+
+    function addScript(src){
+      var s = document.createElement("script");
+      s.src = src;
+      s.defer = true;
+      document.body.appendChild(s);
+    }
+
+    // IMPORTANT: login must be loaded before app (it hides overlay when authed)
+    addScript(isMobile ? "login.mobile.js" : "login.js");
+    addScript(isMobile ? "app.mobile.js" : "app.js");
+  })();
+</script>
 </body>
 </html>
