@@ -373,35 +373,33 @@
     const ts = tsKey_();
     const prefix = `releases/${r.releaseId}/versions/${ts}/`;
 
-    // Cover (from dataUrl)
-    if (r.coverDataUrl && !r.coverKey){
-      const src = await (await fetch(r.coverDataUrl)).blob();
-      const { blob: webp } = await blobToWebpBlob_(src, { maxSide: 1400, quality: 0.86 });
-      const key = prefix + "cover.webp";
-      const { url } = await cloudPresignPut_({ key, contentType: "image/webp" });
-      await cloudPut_({ url, blob: webp, contentType: "image/webp" });
-      r.coverKey = key;
-      // reduce local DB size
-      // keep coverDataUrl for UI preview, but you may delete it if you want:
-      // delete r.coverDataUrl;
-    }
+    // Cover (always re-upload if we have source)
+if (r.coverDataUrl){
+  const src = await (await fetch(r.coverDataUrl)).blob();
+  const { blob: webp } = await blobToWebpBlob_(src, { maxSide: 1400, quality: 0.86 });
+  const key = prefix + "cover.webp";
+  const { url } = await cloudPresignPut_({ key, contentType: "image/webp" });
+  await cloudPut_({ url, blob: webp, contentType: "image/webp" });
+  r.coverKey = key;
+}
 
-    // Creatives (from dataUrl)
-    for (const c of (r.communities || [])){
-      for (const cr of (c.creatives || [])){
-        if (cr.objectKey) continue;
-        if (!cr.dataUrl) continue;
-        const src = await (await fetch(cr.dataUrl)).blob();
-        const { blob: webp } = await blobToWebpBlob_(src, { maxSide: 2000, quality: 0.86 });
-        const idPart = safeKeyPart_(cr.id || cr.name || "creative");
-        const key = prefix + `creatives/${idPart}.webp`;
-        const { url } = await cloudPresignPut_({ key, contentType: "image/webp" });
-        await cloudPut_({ url, blob: webp, contentType: "image/webp" });
-        cr.objectKey = key;
-        // optionally drop base64 to keep DB light
-        // delete cr.dataUrl;
-      }
-    }
+    // Creatives (always re-upload if we have source)
+for (const c of (r.communities || [])){
+  for (const cr of (c.creatives || [])){
+    if (!cr.dataUrl) continue;
+
+    const src = await (await fetch(cr.dataUrl)).blob();
+    const { blob: webp } = await blobToWebpBlob_(src, { maxSide: 2000, quality: 0.86 });
+
+    const idPart = safeKeyPart_(cr.id || cr.name || "creative");
+    const key = prefix + `creatives/${idPart}.webp`;
+
+    const { url } = await cloudPresignPut_({ key, contentType: "image/webp" });
+    await cloudPut_({ url, blob: webp, contentType: "image/webp" });
+
+    cr.objectKey = key;
+  }
+}
 
     // Snapshot
     const snap = buildSnapshot_(r, prefix);
