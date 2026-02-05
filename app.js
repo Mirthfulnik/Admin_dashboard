@@ -479,7 +479,129 @@ for (const c of (r.communities || [])){
     if (a && !t) return a;
     if (!a && t) return t;
     return `${a} - ${t}`;
-  }  function releaseSearchHaystack_(r){
+  }
+  }
+
+  // ===== Filters helpers (Releases / History) =====
+  function uniqSorted_(arr){
+    return Array.from(new Set((arr || []).filter(Boolean).map(s=>String(s).trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"ru"));
+  }
+
+  function splitArtistsTokens_(s){
+    const raw = String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
+    // also keep original full string as a token (for exact match on combined artists)
+    const full = String(s||"").trim();
+    const out = [];
+    if (full) out.push(full);
+    out.push(...raw);
+    return uniqSorted_(out);
+  }
+
+  function collectReleaseFilterOptions_(releases){
+    const artists = [];
+    const tracks = [];
+    const commNames = [];
+    const commIds = [];
+    for (const r of (releases || [])){
+      if (!r) continue;
+      artists.push(...splitArtistsTokens_(r.artists));
+      if (r.track) tracks.push(String(r.track).trim());
+      for (const c of (r.communities || [])){
+        if (!c) continue;
+        if (c.name) commNames.push(String(c.name).trim());
+        if (c.vkId) commIds.push(String(c.vkId).trim());
+      }
+    }
+    return {
+      artists: uniqSorted_(artists),
+      tracks: uniqSorted_(tracks),
+      commNames: uniqSorted_(commNames),
+      commIds: uniqSorted_(commIds)
+    };
+  }
+
+  function populateSelect_(sel, values, { keepValue="" } = {}){
+    if (!sel) return;
+    const cur = keepValue || sel.value || "";
+    sel.innerHTML = "";
+    const optAll = document.createElement("option");
+    optAll.value = "";
+    optAll.textContent = "Все";
+    sel.appendChild(optAll);
+
+    for (const v of (values || [])){
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = v;
+      sel.appendChild(o);
+    }
+    // restore selection if still exists
+    if (cur && (values || []).includes(cur)) sel.value = cur;
+    else sel.value = "";
+  }
+
+  function getFiltersFromDom_(scope){
+    const p = scope + "-filter-";
+    const artist = ($("#"+p+"artist")?.value || "").trim();
+    const track = ($("#"+p+"track")?.value || "").trim();
+    const community = ($("#"+p+"community")?.value || "").trim();
+    const communityId = ($("#"+p+"communityId")?.value || "").trim();
+    const dateField = ($("#"+p+"dateField")?.value || "updatedAt").trim();
+    const dateFrom = ($("#"+p+"dateFrom")?.value || "").trim(); // YYYY-MM-DD
+    const dateTo = ($("#"+p+"dateTo")?.value || "").trim();     // YYYY-MM-DD
+    return { artist, track, community, communityId, dateField, dateFrom, dateTo };
+  }
+
+  function dateIsoToYmd_(iso){
+    if (!iso) return "";
+    // ISO expected: 2026-02-05T... -> 2026-02-05
+    return String(iso).slice(0,10);
+  }
+
+  function betweenYmd_(ymd, from, to){
+    if (!ymd) return false;
+    if (from && ymd < from) return false;
+    if (to && ymd > to) return false;
+    return true;
+  }
+
+  function releasePassesFilters_(r, f){
+    if (!r) return false;
+    if (f.artist){
+      const tokens = splitArtistsTokens_(r.artists);
+      if (!tokens.includes(f.artist)) return false;
+    }
+    if (f.track){
+      if (String(r.track||"").trim() !== f.track) return false;
+    }
+    if (f.community){
+      const ok = (r.communities || []).some(c => String(c?.name||"").trim() === f.community);
+      if (!ok) return false;
+    }
+    if (f.communityId){
+      const ok = (r.communities || []).some(c => String(c?.vkId||"").trim() === f.communityId);
+      if (!ok) return false;
+    }
+    if (f.dateFrom || f.dateTo){
+      const ymd = dateIsoToYmd_(r[f.dateField] || "");
+      if (!betweenYmd_(ymd, f.dateFrom, f.dateTo)) return false;
+    }
+    return true;
+  }
+
+  function updateFiltersUi_(scope, releases){
+    const opts = collectReleaseFilterOptions_(releases);
+
+    const p = scope + "-filter-";
+    populateSelect_($("#"+p+"artist"), opts.artists, { keepValue: $("#"+p+"artist")?.value || "" });
+    populateSelect_($("#"+p+"track"), opts.tracks, { keepValue: $("#"+p+"track")?.value || "" });
+    populateSelect_($("#"+p+"community"), opts.commNames, { keepValue: $("#"+p+"community")?.value || "" });
+    populateSelect_($("#"+p+"communityId"), opts.commIds, { keepValue: $("#"+p+"communityId")?.value || "" });
+
+    const df = $("#"+p+"dateField");
+    if (df && !df.value) df.value = "updatedAt";
+  }
+  function releaseSearchHaystack_(r){
     const parts = [];
     if (!r) return "";
     parts.push(r.releaseId, r.title, r.artists, r.track, r.createdAt, r.updatedAt, r.lastCloudVersion);
@@ -597,32 +719,51 @@ function getDemoTotals_(c){
    * -----------------------------*/
   $$(".tabBtn").forEach(b=>b.addEventListener("click", ()=>go_(b.dataset.route)));
 
-  // Search inputs (Releases / History)
-  const releasesSearchEl = $("#releases-search");
-  const releasesSearchClearEl = $("#releases-search-clear");
-  if (releasesSearchEl){
-    releasesSearchEl.addEventListener("input", ()=>renderReleases_());
-  }
-  if (releasesSearchClearEl){
-    releasesSearchClearEl.addEventListener("click", ()=>{
-      if (releasesSearchEl) releasesSearchEl.value = "";
-      renderReleases_();
-      releasesSearchEl && releasesSearchEl.focus();
+  // Search inputs (Releases / History) — filter controls
+  function bindFilters_(scope){
+    const p = scope + "-filter-";
+    const ids = [
+      p + "artist",
+      p + "track",
+      p + "community",
+      p + "communityId",
+      p + "dateField",
+      p + "dateFrom",
+      p + "dateTo"
+    ];
+    ids.forEach(id=>{
+      const el = $("#"+id);
+      if (!el) return;
+      el.addEventListener("change", ()=>{
+        if (scope === "releases") renderReleases_();
+        if (scope === "history") renderHistory_();
+      });
+      el.addEventListener("input", ()=>{
+        if (scope === "releases") renderReleases_();
+        if (scope === "history") renderHistory_();
+      });
     });
+
+    const clearBtn = $("#"+scope+"-filters-clear");
+    if (clearBtn){
+      clearBtn.addEventListener("click", ()=>{
+        ids.forEach(id=>{
+          const el = $("#"+id);
+          if (!el) return;
+          if (el.tagName === "SELECT") el.value = "";
+          else el.value = "";
+        });
+        // defaults for dateField
+        const df = $("#"+p+"dateField");
+        if (df) df.value = "updatedAt";
+        if (scope === "releases") renderReleases_();
+        if (scope === "history") renderHistory_();
+      });
+    }
   }
 
-  const historySearchEl = $("#history-search");
-  const historySearchClearEl = $("#history-search-clear");
-  if (historySearchEl){
-    historySearchEl.addEventListener("input", ()=>renderHistory_());
-  }
-  if (historySearchClearEl){
-    historySearchClearEl.addEventListener("click", ()=>{
-      if (historySearchEl) historySearchEl.value = "";
-      renderHistory_();
-      historySearchEl && historySearchEl.focus();
-    });
-  }
+  bindFilters_("releases");
+  bindFilters_("history");
 
 
   /** -----------------------------
@@ -751,13 +892,24 @@ function getDemoTotals_(c){
 
   function renderReleases_(){
     const list = $("#releases-list");
-    const releases = Object.values(state.db.releases).sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
-    $("#releases-count").textContent = String(releases.length);
+
+    const all = Object.values(state.db.releases || {});
+    updateFiltersUi_("releases", all);
+
+    const f = getFiltersFromDom_("releases");
+    const releases = all
+      .filter(r => releasePassesFilters_(r, f))
+      .sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+
+    // показываем количество найденных (и общий объём)
+    $("#releases-count").textContent = `${releases.length}/${all.length}`;
+
     list.innerHTML = "";
     if (!releases.length){
-      list.innerHTML = `<div class="muted">Пока нет релизов. Нажми «+ Добавить релиз».</div>`;
+      list.innerHTML = `<div class="muted">Ничего не найдено по выбранным фильтрам.</div>`;
       return;
     }
+
     for (const r of releases){
       const item = document.createElement("div");
       item.className = "item";
@@ -786,7 +938,7 @@ function getDemoTotals_(c){
         try{ await ensureReleaseHydrated_(r.releaseId); }catch(e){ console.error(e); }
         go_("report");
       });
-       list.appendChild(item);
+      list.appendChild(item);
     }
   }
 
@@ -799,19 +951,21 @@ function getDemoTotals_(c){
   const reportSelect = $("#report-release-select");
 
   function syncSelectors_(){
-    const releases = Object.values(state.db.releases).sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
-    const makeOptions = (sel)=>{
-      sel.innerHTML = "";
-      if (!releases.length){
-        const o = document.createElement("option");
-        o.value = "";
-        o.textContent = "Нет релизов";
-        sel.appendChild(o);
-        sel.disabled = true;
-        return;
-      }
-      sel.disabled = false;
-      for (const r of releases){
+    const all = Object.values(state.db.releases || {});
+    updateFiltersUi_("history", all);
+
+    const f = getFiltersFromDom_("history");
+    const releases = all
+      .filter(r => releasePassesFilters_(r, f))
+      .sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+
+    $("#history-count").textContent = `${releases.length}/${all.length}`;
+    list.innerHTML = "";
+    if (!releases.length){
+      list.innerHTML = `<div class="muted">Ничего не найдено по выбранным фильтрам.</div>`;
+      return;
+    }
+    for (const r of releases){
         const o = document.createElement("option");
         o.value = r.releaseId;
         o.textContent = r.title;
