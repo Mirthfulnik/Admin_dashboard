@@ -816,7 +816,7 @@ function getDemoTotals_(c){
   /** -----------------------------
    *  Init nav
    * -----------------------------*/
-  $$$(".tabBtn").forEach(b=>b.addEventListener("click", ()=>go_(b.dataset.route)));
+  $$(".tabBtn").forEach(b=>b.addEventListener("click", ()=>go_(b.dataset.route)));
 
 /** Mobile burger navigation */
 (function initMobileNav_(){
