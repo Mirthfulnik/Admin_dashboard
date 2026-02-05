@@ -150,11 +150,10 @@ body{
 /* ===== Desktop: filters in one line ===== */
 @media (min-width: 981px){
   .filtersGrid{
-    display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
-    gap: 16px;
-    align-items: end;
+    margin-bottom: 14px; /* <-- вернуть воздух до списка */
   }
+}
 
   /* Переносим кнопку "Очистить" в одну строку с фильтрами */
   .filtersBottomRow{
