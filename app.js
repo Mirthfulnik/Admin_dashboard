@@ -518,6 +518,33 @@ for (const c of (r.communities || [])){
       commIds: uniqSorted_(commIds)
     };
   }
+  // Build pairing maps for community name <-> vkId (to keep filters consistent)
+  function buildCommunityPairs_(releases){
+    const nameToIds = new Map(); // name -> Set(ids)
+    const idToNames = new Map(); // id -> Set(names)
+
+    for (const r of (releases || [])){
+      for (const c of (r.communities || [])){
+        const name = String(c?.name || "").trim();
+        const id = String(c?.vkId || "").trim();
+        if (!name || !id) continue;
+
+        if (!nameToIds.has(name)) nameToIds.set(name, new Set());
+        nameToIds.get(name).add(id);
+
+        if (!idToNames.has(id)) idToNames.set(id, new Set());
+        idToNames.get(id).add(name);
+      }
+    }
+    return { nameToIds, idToNames };
+  }
+
+  function sortedRu_(arr){
+    return Array.from(arr || []).map(x=>String(x).trim()).filter(Boolean).sort((a,b)=>a.localeCompare(b,"ru"));
+  }
+
+  const _pairSyncGuard = { releases:false, history:false };
+
 
   function populateSelect_(sel, values, { keepValue="" } = {}){
     if (!sel) return;
@@ -612,19 +639,65 @@ function collectOptionsByFacet_(allReleases, scope){
   const cur = getFiltersFromDom_(scope);
   const facets = collectOptionsByFacet_(releases, scope);
 
+  // Build community name<->id pairing under OTHER selected filters (artist/track etc.)
+  const baseForPairs = (releases || []).filter(r => {
+    const f2 = { ...cur, community: "", communityId: "" };
+    return releasePassesFilters_(r, f2);
+  });
+  const { nameToIds, idToNames } = buildCommunityPairs_(baseForPairs);
+
   const selArtist = $("#"+p+"artist");
   const selTrack = $("#"+p+"track");
   const selComm = $("#"+p+"community");
   const selCommId = $("#"+p+"communityId");
 
-  // наполняем, стараясь сохранить текущее значение
+  // Faceted options
   populateSelect_(selArtist, facets.artist, { keepValue: cur.artist });
   populateSelect_(selTrack, facets.track, { keepValue: cur.track });
-  populateSelect_(selComm, facets.community, { keepValue: cur.community });
-  populateSelect_(selCommId, facets.communityId, { keepValue: cur.communityId });
 
-  // вернуть searchable UI (у тебя уже есть)
+  // Community + CommunityId are linked (pairing)
+  let commOptions = facets.community;
+  let commIdOptions = facets.communityId;
+
+  if (cur.community){
+    commIdOptions = sortedRu_(nameToIds.get(cur.community) || []);
+  }
+  if (cur.communityId){
+    commOptions = sortedRu_(idToNames.get(cur.communityId) || []);
+  }
+
+  populateSelect_(selComm, commOptions, { keepValue: cur.community });
+  populateSelect_(selCommId, commIdOptions, { keepValue: cur.communityId });
+
+  // Rebuild searchable UI (combobox) after options update
   if (typeof enhanceSearchableSelects_ === "function") enhanceSearchableSelects_();
+
+  // Auto-sync paired fields when mapping is unambiguous
+  if (_pairSyncGuard[scope]) return;
+  try{
+    _pairSyncGuard[scope] = true;
+
+    if (selComm && selCommId){
+      const name = (selComm.value || "").trim();
+      const id = (selCommId.value || "").trim();
+
+      if (name && !id){
+        const ids = sortedRu_(nameToIds.get(name) || []);
+        if (ids.length === 1){
+          selCommId.value = ids[0];
+          selCommId.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      } else if (id && !name){
+        const names = sortedRu_(idToNames.get(id) || []);
+        if (names.length === 1){
+          selComm.value = names[0];
+          selComm.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    }
+  }finally{
+    _pairSyncGuard[scope] = false;
+  }
 }
 
   function releaseSearchHaystack_(r){
@@ -1707,13 +1780,25 @@ if (demoRows.length){
 
   function renderHistory_(){
     const list = $("#history-list");
-    const releases = Object.values(state.db.releases).sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
-    $("#history-count").textContent = String(releases.length);
+
+    const all = Object.values(state.db.releases || {});
+    updateFiltersUi_("history", all);
+
+    const f = getFiltersFromDom_("history");
+    const releases = all
+      .filter(r => releasePassesFilters_(r, f))
+      .sort((a,b)=> (b.updatedAt||"").localeCompare(a.updatedAt||""));
+
+    // count (found/total) if element exists
+    const pill = $("#history-count");
+    if (pill) pill.textContent = `${releases.length}/${all.length}`;
+
     list.innerHTML = "";
     if (!releases.length){
-      list.innerHTML = `<div class="muted">История пуста.</div>`;
+      list.innerHTML = `<div class="muted">Ничего не найдено по выбранным фильтрам.</div>`;
       return;
     }
+
     for (const r of releases){
       const s = summarizeRelease_(r);
       const item = document.createElement("div");
@@ -1739,9 +1824,10 @@ if (demoRows.length){
         try{ await ensureReleaseHydrated_(r.releaseId); }catch(e){ console.error(e); }
         go_("editor");
       });
-      item.querySelector('[data-act="report"]').addEventListener("click", ()=>{
+      item.querySelector('[data-act="report"]').addEventListener("click", async ()=>{
         state.currentReleaseId = r.releaseId;
         syncSelectors_();
+        try{ await ensureReleaseHydrated_(r.releaseId); }catch(e){ console.error(e); }
         go_("report");
       });
       item.querySelector('[data-act="delete"]').addEventListener("click", ()=> openDeleteModal_(r.releaseId));
@@ -1912,7 +1998,6 @@ if (_btnCloudSave){
   `);
   return el;
 }
-
   function calcKpisFromAdsRows_(rows){
     const col_ = (row, keys)=>{
       for (const k of keys){
