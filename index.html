@@ -82,6 +82,11 @@
           <h2>Список релизов</h2>
           <span class="pill" id="releases-count">0</span>
         </div>
+        <div class="row" style="margin-top:10px">
+          <input id="releases-search" class="searchInput" placeholder="Поиск: исполнитель, трек, сообщество, дата…" />
+          <button class="iconBtn" id="releases-search-clear" title="Очистить">✕</button>
+        </div>
+
         <div id="releases-list" class="list"></div>
       </div>
     </section>
@@ -182,11 +187,6 @@
             <h2>4) Сообщества релиза (1..N)</h2>
             <span class="pill" id="pill-communities">0</span>
           </div>
-
-          <div class="row">
-            <button class="btn" id="btn-add-community" disabled>+ Добавить сообщество</button>
-          </div>
-
           <div class="modal" id="community-modal" hidden>
             <div class="modalCard">
               <div class="cardTitle">
@@ -211,6 +211,10 @@
           </div>
 
           <div id="communities-list" class="stack"></div>
+
+          <div class="row" style="margin-top:12px">
+            <button class="btn" id="btn-add-community" disabled>+ Добавить сообщество</button>
+          </div>
         </section>
 
         <!-- STEP 5: BUILD -->
@@ -242,6 +246,11 @@
           <h2>Релизы и данные</h2>
           <span class="pill" id="history-count">0</span>
         </div>
+        <div class="row" style="margin-top:10px">
+          <input id="history-search" class="searchInput" placeholder="Поиск: исполнитель, трек, сообщество, дата…" />
+          <button class="iconBtn" id="history-search-clear" title="Очистить">✕</button>
+        </div>
+
         <div id="history-list" class="list"></div>
         <div class="hint">Удаление требует подтверждения названием релиза.</div>
       </div>
