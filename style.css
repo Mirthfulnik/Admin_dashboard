@@ -109,12 +109,20 @@ body{
 .grid.cols2{grid-template-columns: 1fr 1fr}
 
 /* ===== Filters (Releases / History) ===== */
-.filtersGrid{
+Grid{
   display:grid;
   margin-bottom: 14px;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   align-items:end;
+}
+/* Кнопка очистки фильтров — отступ снизу до списка */
+.filtersBottomRow{
+  margin-bottom: 16px;
+}
+/* Воздух между comboInput и iconBtn */
+.filtersBottomRow .iconBtn{
+  margin-top: 12px;
 }
 .filtersDate{ grid-column: span 3; }
 .filtersActions{
@@ -144,6 +152,9 @@ body{
   .filtersDateRow{ flex-direction:column; align-items:stretch; }
   .filtersDateField{ max-width: none; width:100%; }
 }
+
+
+
 
 .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
 .field input, .field select, select, input[type="file"]{
