@@ -1,3 +1,7 @@
+/* Elements that must never appear on desktop */
+.mobileOnly, .mobileOnlyHint{ display:none !important; }
+html.isMobile .mobileOnly, html.isMobile .mobileOnlyHint{ display: initial !important; }
+
 /* Mobile/Tablet skin for Lotus Music VK Digital-Отчёт (MVP)
    Loads base desktop styles and overrides layout + navigation for touch devices.
 */
@@ -7,6 +11,10 @@
    Breakpoint: tablets + phones
    -------- */
 @media (max-width: 1024px){
+  :root{ --topbarH: 64px; }
+  body{ padding-top: var(--topbarH); }
+  .topbar{ position: fixed; top:0; left:0; right:0; z-index: 9999; }
+
   .container{
     max-width: 100%;
     margin: 10px auto 92px;
@@ -86,13 +94,24 @@
 
   .reportViewport{
     width: 100%;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  .pageSheet{
-    transform-origin: top left;
-    transform: scale(var(--reportScale, 1));
-    margin: 0 0 12px 0;
-  }
+  
+/* Report: stack small thumbnails without huge whitespace */
+.sheetWrap{
+  width: calc(1123px * var(--reportScale, 1));
+  height: calc(794px * var(--reportScale, 1));
+  margin: 0 auto 12px;
+}
+.sheetWrap > .pageSheet{
+  width: 1123px;
+  height: 794px;
+  transform-origin: top left;
+  transform: scale(var(--reportScale, 1));
+  margin: 0;
+}
 
   /* Reduce page shadow radius on small screens */
   .pageSheet{
