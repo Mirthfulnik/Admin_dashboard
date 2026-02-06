@@ -228,43 +228,9 @@
 
     if (!dataKey) return r; // nothing to hydrate from
 
-    let snap = null;
-    try{
-      const { url } = await cloudPresignGet_({ key: dataKey });
-      snap = await fetchJsonOrNull_(url);
-    }catch(e){
-      // ignore here; we'll try fallback below
-      snap = null;
-    }
-
-    // Fallback: index may point to a non-existent version; ask Cloud Function for real versions and try them.
-    if (!snap){
-      let tried = [dataKey].filter(Boolean);
-      try{
-        const versions = await cloudListVersions_(releaseId);
-        for (const ver of versions){
-          const key2 = `releases/${releaseId}/versions/${ver}/data.json`;
-          if (tried.includes(key2)) continue;
-          tried.push(key2);
-          try{
-            const { url: u2 } = await cloudPresignGet_({ key: key2 });
-            const s2 = await fetchJsonOrNull_(u2);
-            if (s2){
-              snap = s2;
-              // rewrite cloud pointer in memory so the next hydration uses the working version first
-              r.cloudVersions = [{ versionId: ver, dataKey: key2, coverKey: `releases/${releaseId}/versions/${ver}/cover.webp` }];
-              break;
-            }
-          }catch(e2){}
-        }
-      }catch(listErr){
-        console.warn("Cloud list fallback failed:", listErr);
-      }
-      if (!snap){
-        console.error("Snapshot missing in cloud. Tried keys:", tried);
-        throw new Error("Не удалось загрузить snapshot из облака");
-      }
-    }
+    const { url } = await cloudPresignGet_({ key: dataKey });
+    const snap = await fetchJsonOrNull_(url);
+    if (!snap) throw new Error("Не удалось загрузить snapshot из облака");
 
     // Apply snapshot
     r.title = snap.title || r.title;
@@ -443,38 +409,6 @@ if (r.coverDataUrl){
   await cloudPut_({ url, blob: webp, contentType: "image/webp" });
   r.coverKey = key;
 }
-
-  // List versions for a release (Cloud Function supports GET ?action=list&releaseId=...)
-  async function cloudListVersions_(releaseId){
-    const url = `${CLOUD_API}?action=list&releaseId=${encodeURIComponent(releaseId)}`;
-    const res = await fetch(url, { method: "GET" });
-    const txt = await res.text();
-    let data = {};
-    try { data = JSON.parse(txt || "{}"); } catch(e){}
-    if (!res.ok || data.ok === false){
-      const msg = (data && (data.error || data.errorMessage)) ? (data.error || data.errorMessage) : `Cloud API error (${res.status})`;
-      throw new Error(msg);
-    }
-    return Array.isArray(data.versions) ? data.versions : [];
-  }
-
-  async function cloudDeleteRelease_(releaseId){
-    const data = await cloudCall_({ action: "deleteRelease", releaseId });
-    return !!data.ok;
-  }
-  async function cloudRemoveReleaseFromIndex_(releaseId){
-    // Update global index/releases.json to remove the release
-    const idx = await cloudReadJsonKeyOrNull_(CLOUD_INDEX_KEY) || { schema: 1, releases: [] };
-    idx.schema = idx.schema || 1;
-    idx.releases = (Array.isArray(idx.releases) ? idx.releases : []).filter(x => x && x.releaseId !== releaseId);
-    await cloudWriteJsonKey_(CLOUD_INDEX_KEY, idx);
-    // Best-effort: delete per-release index file (requires Cloud Function support; ignored if not supported)
-    try{
-      await cloudCall_({ action: "deleteKey", key: CLOUD_RELEASE_INDEX_PREFIX + releaseId + ".json" });
-    }catch(e){}
-  }
-
-
 
     // Creatives (always re-upload if we have source)
 for (const c of (r.communities || [])){
@@ -998,6 +932,7 @@ function getDemoTotals_(c){
 
     const wrap = document.createElement("div");
     wrap.className = "comboSelect";
+
     const input = document.createElement("input");
     input.type = "text";
     input.className = "comboInput";
@@ -1827,8 +1762,33 @@ if (demoRows.length){
       wrap.style.gap="6px";
       wrap.style.marginRight="10px";
       const img = document.createElement("img");
-      img.src = cr.dataUrl;
+      img.src = cr.dataUrl || "";
       img.alt = cr.name || "creative";
+      // Ensure creatives always render even when only objectKey is stored (cloud snapshots).
+      // We refresh signed URLs on demand (prevents expired presigns).
+      if (cr.objectKey){
+        (async ()=>{
+          try{
+            const url = await cloudObjectUrl_(cr.objectKey);
+            cr.dataUrl = url;
+            img.src = url;
+          }catch(e){
+            console.warn("creative url load failed", e);
+          }
+        })();
+        img.onerror = ()=>{
+          // one best-effort retry with fresh presign
+          (async ()=>{
+            try{
+              const url = await cloudObjectUrl_(cr.objectKey);
+              cr.dataUrl = url;
+              img.src = url;
+            }catch(e){
+              console.warn("creative retry failed", e);
+            }
+          })();
+        };
+      }
       img.style.width = "140px";
       img.style.height = "110px";
       img.style.objectFit = "cover";
@@ -1923,7 +1883,7 @@ if (demoRows.length){
     $("#btn-confirm-delete").disabled = !ok;
   });
 
-  $("#btn-confirm-delete").addEventListener("click", async ()=>{
+  $("#btn-confirm-delete").addEventListener("click", ()=>{
     if (!deleteTargetId) return;
     const r = state.db.releases[deleteTargetId];
     const confirmText = ($("#delete-confirm").value||"").trim();
@@ -1931,18 +1891,6 @@ if (demoRows.length){
       alert("Название не совпадает.");
       return;
     }
-
-    // 1) Delete in cloud first (so we don't leave orphaned cloud data)
-    try{
-      await cloudDeleteRelease_(deleteTargetId);
-      await cloudRemoveReleaseFromIndex_(deleteTargetId);
-    }catch(e){
-      console.error(e);
-      alert("Не удалось удалить релиз из облака: " + (e?.message || e));
-      return;
-    }
-
-    // 2) Delete locally
     delete state.db.releases[deleteTargetId];
     saveDB_();
     deleteModal.hidden = true;
@@ -1954,7 +1902,7 @@ if (demoRows.length){
     renderReleases_();
     renderHistory_();
     renderReport_();
-    await go_("releases");
+    go_("releases");
   });
 
   function renderHistory_(){
@@ -2192,7 +2140,7 @@ if (_btnCloudSave){
       spent   += num_(col_(row, ["Потрачено всего, ₽","Потрачено всего, Р","Потрачено всего","Расход, ₽","Расход, Р"]));
       shows   += num_(col_(row, ["Показы","Показов"]));
       listens += num_(col_(row, ["Начали прослушивание","Прослушивания","Начали прослушивание аудио"]));
-      adds    += num_(col_(row, ["Добавили аудио","Добавления аудио","Добавили"]));
+      adds    += num_(col_(row, ["Добавили аудио","Добавления аудио","Добавили","Добавления"]));
 
       const gid = (col_(row, ["ID группы","ID группы объявления","ID группы (объявление)"]) ?? "").toString().trim();
       if (gid) groupIds.add(gid);
