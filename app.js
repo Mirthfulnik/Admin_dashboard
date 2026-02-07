@@ -53,6 +53,12 @@
     return { url: data.downloadUrl };
   }
 
+  async function cloudDeleteRelease_(releaseId){
+     const data = await cloudCall_({ action: "deleteRelease", releaseId });
+     return data; // { ok:true, ... }
+ }
+
+
   async function cloudPut_({ url, blob, contentType }){
     const res = await fetch(url, {
       method: "PUT",
@@ -1883,27 +1889,40 @@ if (demoRows.length){
     $("#btn-confirm-delete").disabled = !ok;
   });
 
-  $("#btn-confirm-delete").addEventListener("click", ()=>{
-    if (!deleteTargetId) return;
-    const r = state.db.releases[deleteTargetId];
-    const confirmText = ($("#delete-confirm").value||"").trim();
-    if (confirmText !== (r.title||"").trim()){
-      alert("Название не совпадает.");
-      return;
-    }
-    delete state.db.releases[deleteTargetId];
-    saveDB_();
-    deleteModal.hidden = true;
+$("#btn-confirm-delete").addEventListener("click", async ()=>{
+  if (!deleteTargetId) return;
 
-    // update selection
-    const ids = Object.keys(state.db.releases);
-    state.currentReleaseId = ids.length ? ids[0] : null;
-    syncSelectors_();
-    renderReleases_();
-    renderHistory_();
-    renderReport_();
-    go_("releases");
-  });
+  const r = state.db.releases[deleteTargetId];
+  const confirmText = ($("#delete-confirm").value||"").trim();
+  if (confirmText !== (r.title||"").trim()){
+    alert("Название не совпадает.");
+    return;
+  }
+
+  // 1) Сначала удаляем в облаке (чтобы не было рассинхрона)
+  try{
+    await cloudDeleteRelease_(deleteTargetId);
+  }catch(e){
+    console.error(e);
+    alert("Не удалось удалить релиз в облаке: " + (e?.message || e));
+    return;
+  }
+
+  // 2) Потом удаляем локально
+  delete state.db.releases[deleteTargetId];
+  saveDB_();
+  deleteModal.hidden = true;
+
+  // update selection
+  const ids = Object.keys(state.db.releases);
+  state.currentReleaseId = ids.length ? ids[0] : null;
+  syncSelectors_();
+  renderReleases_();
+  renderHistory_();
+  renderReport_();
+  go_("releases");
+});
+
 
   function renderHistory_(){
     const list = $("#history-list");
